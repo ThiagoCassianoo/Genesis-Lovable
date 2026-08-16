@@ -1,0 +1,8 @@
+{
+  "task_id": "string — mesmo id usado no plano da task",
+  "timestamp": "AAAA-MM-DDTHH:MM:SSZ — UTC, informativo, não é o critério de validade",
+  "diff_hash": "sha256 de `git diff --cached` no momento da fiscalização — ESTE é o critério de validade, não o timestamp",
+  "veredito": "pass | revise | escalate",
+  "bloqueia_entrega": "true | false — false só quando veredito é pass",
+  "agente": "fiscal-agent"
+}

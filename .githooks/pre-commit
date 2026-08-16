@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Hook NATIVO do Git — diferente de .claude/hooks/, este roda pra
+# QUALQUER commit, incluindo o que o diretor digita direto no terminal,
+# fora do Claude Code. É a única trava que tem consequência real sobre
+# o fluxo de trabalho de verdade (copiar comando, colar no terminal).
+#
+# Ativação (uma vez, por ambiente — não vem ligado por padrão):
+#   git config core.hooksPath .githooks
+#
+# Sem essa linha rodada, este arquivo existe no repo mas o Git não o
+# executa. Isso não é escondido: é limitação de como Git hooks
+# funcionam — não há como "vir ativado" só por existir no repositório.
+
+set -uo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+LOGS_DIR="$REPO_ROOT/.claude/logs"
+
+LATEST_MARKER=$(ls -t "$LOGS_DIR"/fiscal-*.json 2>/dev/null | grep -v TEMPLATE | head -1)
+
+if [ -z "$LATEST_MARKER" ]; then
+  echo "BLOQUEADO: nenhum marcador de fiscal-agent encontrado em $LOGS_DIR." >&2
+  echo "Rode o fiscal-agent antes de commitar (ele grava fiscal-<task_id>.json)." >&2
+  echo "Se este commit é rotina de infraestrutura sem entrega de agente" >&2
+  echo "(ex.: fix de hook, ajuste de config), rode com --no-verify e registre" >&2
+  echo "o motivo em docs/decisoes.md — a exceção manual continua existindo," >&2
+  echo "só não deve ser hábito." >&2
+  exit 1
+fi
+
+# Critério de validade é IDENTIDADE do diff, não tempo decorrido — uma
+# task de 2 dias com fiscal rodado uma vez no final continua válida;
+# qualquer mudança depois do fiscal invalida, mesmo que tenha sido 2
+# minutos atrás.
+CURRENT_HASH=$(git diff --cached | sha256sum | awk '{print $1}')
+MARKER_HASH=$(grep -o '"diff_hash"[[:space:]]*:[[:space:]]*"[^"]*"' "$LATEST_MARKER" | sed 's/.*:[[:space:]]*"//; s/"$//')
+
+if [ -z "$MARKER_HASH" ]; then
+  echo "BLOQUEADO: marcador $LATEST_MARKER não tem diff_hash (formato antigo ou" >&2
+  echo "incompleto). Rode fiscal-agent de novo." >&2
+  exit 1
+fi
+
+if [ "$CURRENT_HASH" != "$MARKER_HASH" ]; then
+  echo "BLOQUEADO: o que está sendo commitado agora é diferente do que o" >&2
+  echo "fiscal-agent auditou ($LATEST_MARKER). Algo mudou depois da" >&2
+  echo "fiscalização — rode fiscal-agent de novo sobre o diff atual." >&2
+  exit 1
+fi
+
+BLOQUEIA=$(grep -o '"bloqueia_entrega"[[:space:]]*:[[:space:]]*[a-z]*' "$LATEST_MARKER" | sed 's/.*:[[:space:]]*//')
+if [ "$BLOQUEIA" = "true" ]; then
+  echo "BLOQUEADO: o último fiscal-agent marcou bloqueia_entrega=true" >&2
+  echo "($LATEST_MARKER). Resolva os achados antes de commitar." >&2
+  exit 1
+fi
+
+exit 0
