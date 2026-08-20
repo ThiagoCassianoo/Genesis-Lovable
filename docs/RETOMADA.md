@@ -1,267 +1,146 @@
-# Retomada — 2026-08-16
+# Retomada — 2026-08-20 16:20
 
 ## Tarefa em curso
-task_id: `fabrica-agentes-v1`
-Objetivo: fechar o pacote de agentes da Missões Tech (16 agentes,
-regras, hooks, comandos) e entregar o zip para o ambiente operacional
-(Codespace). O pacote é a fábrica — não é o site nem o sistema de
-nenhum cliente.
-Etapa do fluxo: fora do ciclo de cliente. É construção da própria
-fábrica.
-
-**Visão maior, esclarecida em 2026-08-16:** este repositório (repo 1)
-é o cérebro fixo — onde entra o problema cru de qualquer cliente, fica
-registrado o histórico (brief, decisões, lições) e sai o brief que dá
-origem ao repo 2 (a solução daquele cliente, a que vai pro ar). Thiago
-não quer depender só do Claude Code — quer o time de agentes rodando
-numa interface própria, funcionando com Claude OU Gemini. O scaffold
-v0 disso já existe (`runtime/`) — ver "Feito" e "Próximo passo
-imediato" abaixo.
+task_id: `fabrica-agentes-v1-runtime-fix`
+Objetivo: fábrica de 16 agentes com camada determinística (`runtime/`)
+funcionando de ponta a ponta, versionada no GitHub, com pelo menos 1
+agente provado rodando com chamada real de IA. Não é projeto de
+cliente — é a construção da própria fábrica.
+Etapa do fluxo: fora do ciclo de cliente (construção de ferramenta
+interna). Dentro da fábrica em si, equivalente à Etapa 6 (Fechamento)
+de um ciclo de manutenção — 3 bugs reais corrigidos, testados,
+auditados e commitados.
 
 ## Feito (com evidência)
-- 16 agentes com frontmatter completo → `.claude/agents/*.md`
-- Regras consolidadas em 5 arquivos → `.claude/rules/`
-- 9 comandos → `.claude/commands/`
-- Hooks testados: red lines bloqueia com exit 2, observabilidade grava
-  JSONL sanitizado → `.claude/hooks/`
-- Arquitetura de referência do agendamento (978 linhas, SQL real) →
-  `docs/arquitetura-agendamento.md`
-- Conselho rodou de verdade uma vez, na decisão de stack →
-  `docs/decisoes.md`, seção "Deliberação do Conselho"
-- Memória entre sessões → `docs/decisoes.md`, `docs/conhecimento/`
-- Histórico completo do que foi corrigido/criado em 2026-08-16 (fix do
-  `business-agent`; criação e depois substituição do `intake-agent`
-  pelo `navigator-agent`; `runtime/` v0; fiscalização "Alucinação
-  técnica"; proposta de arquitetura repo 1/2) → `docs/decisoes.md`,
-  seções datadas 2026-08-16. Não repito a narrativa aqui — fonte
-  única é lá.
-- `runtime/` — CLI Node.js v0 que carrega `.claude/agents/*.md` e
-  conversa com Claude ou Gemini (failover automático, tier por
-  agente). Testado nesta sessão de verdade: `npm install` rodou (49
-  pacotes, versões reais resolvidas pelo npm, não hardcoded), pipeline
-  completo (`agent-loader` → `router` → `sendMessage`) executado contra
-  `fiscal-agent` e `implementation-agent` — chegou até a chamada real
-  de API, falhou só por falta de chave (esperado, chave é do Thiago).
-  Falta só o teste com chave de verdade, no terminal dele. Ver
-  `runtime/README.md` pras limitações honestas do v0.
-- `.claude/agents/fiscal-agent.md` ganhou a fiscalização "1b.
-  Alucinação técnica" (bloqueia entrega, mesma força de GENÉRICO/SEM
-  EVIDÊNCIA) e `agent-contracts.md` ganhou o mesmo princípio como regra
-  preventiva (item 3).
-- `docs/arquitetura-repo1-repo2.md` — proposta de estrutura (repo 2 =
-  1 por entregável deployável, não por cliente; banco de dados fica
-  pra quando markdown não bastar). Marcada como PREMISSA, não decisão
-  fechada — Thiago ainda não confirmou.
-- **Tier de modelo por agente** — todo agente tem `model_fallback:
-  capaz|economico` no frontmatter agora, ao lado do `model: opus|sonnet`
-  que já existia. `runtime/` usa os dois pra escolher o modelo real em
-  cada provider. Critério e tabela completa →
-  `docs/model-assignment.md`; hipóteses sobre comportamento cross-model
-  (não validadas) → `docs/gemini-contract.md`; regras extras de
-  auditoria em modo degradado → `docs/fiscal-protocolo-degradado.md`.
-  Diverge do que Thiago propôs em 2 pontos (`fiscal-agent` ficou capaz,
-  não econômico — motivo em `docs/model-assignment.md`) — ele ainda
-  não confirmou se concorda com a divergência.
-- **Padrão de excelência always-on** — `quality-gates.md` (já
-  `@import`ado sempre pelo `CLAUDE.md`) ganhou seção nova com as 6
-  fiscalizações do `fiscal-agent` reescritas em 1ª pessoa, como o que
-  cada agente garante antes de devolver, não o que o fiscal acha
-  depois. Confirmado por doc oficial nesta sessão: subagente herda
-  `CLAUDE.md` inteiro automaticamente (incluindo `@import`s), sem
-  precisar de `skills:` nem invocação nenhuma. `fiscal-agent` continua
-  na Etapa 5 como rede de segurança. Decisão completa →
-  `docs/decisoes.md`, seção "Padrão de excelência always-on".
-- **Bug real encontrado e ainda NÃO corrigido, de propósito** —
-  `swarm-planner/SKILL.md` e `parallel-task/SKILL.md` usam
-  `metadata: invocation: explicit-only`, campo que a doc oficial
-  confirma que o Claude Code **não lê** (metadata é livre, sem efeito).
-  O campo certo é `disable-model-invocation: true` na raiz do
-  frontmatter. Deixado pro Thiago corrigir com a mão — ele pediu pra
-  não corrigir sozinho de cara quando algo quebra, quer ser guiado.
-  Ver "Próximo passo imediato" abaixo pro passo a passo.
-- **Stack de backend aprovada** — Supabase, uma instância por cliente,
-  pagamento fora do v1, com as 5 condições. `backend-master.md` e
-  `CLAUDE.md` atualizados. `backend-master` desbloqueado: não precisa
-  mais recomendar stack a cada projeto, só modelar o domínio
-  específico. Decisão completa → `docs/decisoes.md`, seção "Stack de
-  backend aprovada".
-- **`runtime/src/router.js` ganhou resiliência de verdade** — timeout
-  60s por chamada, retry curto com backoff+jitter só pra erro
-  transiente, circuit breaker por provider (3 falhas/60s abre por
-  30s). Testado nesta sessão sem API key: erro de config falha em ~1ms
-  sem retry desperdiçado, e a 4ª chamada ao mesmo provider bate no
-  circuito aberto em 0ms. `README.md` e `.env.example` do `runtime/`
-  atualizados. Motivo e o que ficou de fora (fila/workers assíncronos,
-  por quê) → `docs/conhecimento/principios-natureza-orquestrador.md`.
-- **`creative-agent.md` reforçado** — ordem interna obrigatória (não
-  pula pra visual antes de entender problema/fluxo/arquitetura), seção
-  "Modo verdade (truth mode)", 9 estados de interface (era 3),
-  classificação de interação roteando pra `backend-master`/
-  `infra-agent`/`security-agent`, contrato de entrada mais completo,
-  condições de parada explícitas. Adaptado de documento externo do
-  Thiago, com 3 pontos conscientemente descartados por conflito com
-  regra existente (agente falando direto com cliente, duplicar
-  `reviewer-agent`, "especialista MCP" inexistente no time) — detalhe
-  completo em `docs/decisoes.md`, seção "Reforço do creative-agent".
-- **Diagnóstico completo do repositório (só leitura) + 4 hooks novos,
-  todos testados de verdade nesta sessão.** Achado mais grave: a pasta
-  não é repositório git — a trava de commit (`guard-red-lines.sh` +
-  marcador do `fiscal-agent`) fica incapaz de distinguir diff mudado
-  de diff igual (`git diff --cached` erra fora de repo git). Achado 2:
-  `supabase/migrations/` (14 arquivos SQL reais) existe sem nenhum
-  registro em `docs/decisoes.md` até esta sessão — origem exata não
-  verificável, fica pendente de esclarecimento do Thiago, não é
-  acusação. A partir do diagnóstico, construí (com aprovação explícita
-  em 3 perguntas):
-  - `guard-red-lines.sh` — install/rm/deploy ganharam **desbloqueio
-    real** via marcador de uso único (`/aprovar`, novo comando), igual
-    ao padrão que o commit já tinha. Antes, essas 3 ações eram
-    bloqueio permanente mesmo com aprovação no chat.
-  - `guard-retry-loop.sh` (novo) — Regra de ouro 7 mecanizada: mesmo
-    comando falhando 2x na sessão bloqueia a 3ª tentativa.
-  - `guard-decisoes-lida.sh` (novo) — Regra de ouro 8 mecanizada:
-    bloqueia o fim da execução de 7 agentes titulares se não houver
-    sinal de terem lido `docs/decisoes.md` (heurística de transcript,
-    limitação documentada no próprio hook).
-  - `check-retomada-antes-compactar.sh` + `inject-retomada-ao-resumir.sh`
-    (novos) — continuidade automática: bloqueia compactação se
-    `RETOMADA.md` não foi atualizado hoje, injeta `RETOMADA.md`
-    sozinho ao retomar sessão. Não existe "80% exato" — Claude Code
-    não expõe isso a hook (confirmado, issue aberto no GitHub
-    oficial), este é o sinal nativo mais próximo.
-  - Regras 2, 3, 4, 5, 6 ficaram **de propósito sem hook** — julgamento
-    semântico, hook erraria mais do que ajudaria; continuam com
-    `fiscal-agent`/`reviewer-agent`.
-  `.claude/settings.json` registra os 4 hooks novos. `CLAUDE.md`
-  (Regras de ouro, marcador 🔒) e `README.md` (comandos, mecânica de
-  bloqueio, continuidade, estado atual da stack) atualizados juntos.
-  Detalhe completo → `docs/decisoes.md`, 3 seções datadas desta rodada.
+- 3 bugs reais corrigidos nesta sessão, todos com causa raiz
+  confirmada por execução, não por leitura de comentário:
+  1. `.claude/hooks/guard-red-lines.sh` — `command -v python3` dava
+     positivo no "App execution alias" fantasma do Windows Store, que
+     falha silenciosamente na execução; o hook nunca caía pro `node`
+     (que funciona) e a trava de commit/install/rm saía com exit 0 em
+     vez de exit 2. Corrigido: checa o status real do interpretador,
+     cai pro próximo em qualquer falha inesperada.
+  2. `runtime/src/providers/groq-provider.js` — os dois tiers
+     (`capaz` e `economico`) usavam modelos desligados pela Groq em
+     2026-08-16. Trocados por `openai/gpt-oss-120b`/`gpt-oss-20b`.
+  3. Rename órfão `agent-loader.js` → `agentloader.js` — 5 imports
+     quebrados corrigidos, `npm test` não rodava antes disso.
+  → `docs/decisoes.md`, 4 entradas datadas 2026-08-20.
+- `npm test` em `runtime/`: **173/173 checagens verdes** (106
+  self-test + 26 router + 41 orchestrator), incluindo 2 guardas de
+  regressão novas (Groq morto, `git ls-files` do bit +x).
+- `.claude/commands/rodar.md` criado — 1 comando que encadeia as
+  Etapas 1-6 sem pausa entre elas (regra vigente desde 2026-08-16), pra
+  reduzir input manual do diretor. `fiscal-agent` reprovou a 1ª versão
+  (faltava Conselho, `infra-agent`, gravação do brief, log de
+  delegação por agente; afirmava incorretamente que "descartar
+  trabalho" tem desbloqueio) — corrigido nos 5 pontos, confirmado por
+  releitura. Listado em `CLAUDE.md` § Comandos.
+- `CLAUDE.md` ganhou seção "Regras de ouro — economia de sessão" (7
+  regras de uso pessoal). 2 delas colidiam com regras 🔒 existentes —
+  ajustadas com precedência explícita, registrada em `docs/decisoes.md`.
+- **Commit `c7b86df` feito** (65 arquivos) — 1º commit desde
+  2026-08-16, com marcador do `fiscal-agent` validado 3x (2 reprovações
+  reais corrigidas no meio do caminho, não maquiadas).
+- **Remoto configurado e sincronizado**: `origin` →
+  `https://github.com/ThiagoCassianoo/Genesis-Lovable.git`. Merge com
+  histórico não-relacionado (o repo já tinha conteúdo de um projeto
+  Lovable — `.lovable/`, `bun.lock`, `AGENTS.md` etc.) resolvido pelo
+  próprio Thiago no terminal, commit `0b6249d`. `git status -sb`
+  confirma `main...origin/main` sem divergência.
+- **Prova real de agente funcionando**: `npm run testar:navigator`
+  (dentro de `runtime/`) rodou o `navigator-agent` de ponta a ponta com
+  cliente fictício, 5 turnos, via Groq→Cerebras (chave grátis, **não**
+  consome limite do Claude Code), resultado `✅ PASSOU`. Transcript em
+  `runtime/logs/testes/navigator-agent-2026-08-20T14-20-41-185Z.txt`.
+
+## Feito nesta 2ª rodada (economia de sessão, 2026-08-20 ~16h)
+- `CLAUDE.md` reduzido de 223 → 131 linhas: cortadas 3 narrativas
+  históricas (ficaram só em `docs/decisoes.md`), o exemplo ilustrativo
+  do fim, tabelas enxutas. As 8 Regras de Ouro numeradas e os 🔒
+  ficaram intactos (citados por número em outros arquivos). Regra 1 de
+  economia de sessão reforçada pra cobrir "pasta", não só "arquivo".
+- **Status line configurada e completa** (`~/.claude/settings.json`,
+  via agente `statusline-setup`) — mostra contexto da sessão + rate
+  limit semanal (`rate_limits.seven_day`) + janela de 5h
+  (`rate_limits.five_hour`; não existe campo "diário" no schema, por
+  isso o rótulo é "5h", não "Dia" — verificado no schema real, não
+  suposto). Formato: `Contexto: X% usado (Y% livre) . Semana: Z% . 5h: W%`.
+  Qualquer ajuste futuro nela precisa passar pelo agente
+  `statusline-setup` de novo (não editar `settings.json` na mão).
+- Descoberto e explicado ao diretor: limite semanal ≠ diário (janelas
+  de reset diferentes) — não é bug, é a soma acumulada dos 7 dias vs.
+  o dia corrente.
+- Recomendado (não feito ainda): `/mcp` pra desativar server MCP
+  parado — ação do próprio diretor no terminal, zero custo de token,
+  não precisa de mim.
+- Adiado por decisão do diretor (orçamento): hook de filtro de output
+  verboso — item mais caro da lista original de economia, ainda não
+  criado.
 
 ## Próximo passo imediato
+1. Confirmar visualmente que a status line nova está aparecendo certo
+   no terminal (abrir uma sessão nova do Claude Code e olhar).
+2. Rodar `/mcp` pra desativar server(s) MCP parado(s) — ação do
+   diretor, zero custo, ainda não feita.
+3. Se/quando quiser: hook de filtro de output verboso — adiado por
+   orçamento, é o item mais caro que sobrou da lista de economia.
 
-**`git init` feito, zip entregue.** Branch `main`, primeiro commit
-(99 arquivos). Achado ao vivo importante durante isso, registrado em
-`docs/decisoes.md`: `.claude/hooks/*` só trava dentro de uma sessão
-real do Claude Code CLI — esta sessão (Cowork) não passa por ali, meu
-primeiro `git commit` passou sem gate. Quem trava commit de qualquer
-lugar (terminal, Codespace) é `.githooks/pre-commit` (hook nativo do
-git), que precisa de `git config core.hooksPath .githooks` — **não
-vem ativado sozinho ao clonar/copiar o repo, é config local, não
-versionada**. Ativado aqui e testado (bloqueia sem marcador de
-fiscal). **No Codespace, rodar esse `git config` de novo é obrigatório
-— primeira coisa a fazer, senão a trava de commit não existe lá.**
-
-Zip entregue via `SendUserFile`, com `.git` (baseline já commitado) e
-sem `runtime/node_modules/` (regenerar com `npm install`).
-
-**Fix guiado — `disable-model-invocation` nos 2 skills.** Passo a passo
-pro Thiago (não corrigir por ele):
-1. Abrir `.claude/skills/swarm-planner/SKILL.md`.
-2. No frontmatter (entre os `---`), apagar o bloco `metadata:` inteiro
-   (as 2 linhas `invocation: explicit-only` e `adaptado_de: ...`).
-3. Adicionar `disable-model-invocation: true` como campo solto, na
-   raiz do frontmatter (mesmo nível de `name:`/`description:`).
-4. Repetir os 3 passos em `.claude/skills/parallel-task/SKILL.md`.
-5. Se quiser manter o `adaptado_de: am-will/swarms` como referência,
-   ele pode continuar dentro de `metadata:` (esse campo é livre, só não
-   controla comportamento) — só o `invocation:` precisa sair de lá.
-
-**Zip desatualizado — pendente, aguardando o Thiago pedir.** O zip que
-o Thiago tem em mãos (70 arquivos, 2026-08-15) é anterior a tudo que
-foi feito em 2026-08-16, incluindo o `runtime/` inteiro. Quando ele
-mandar: gerar novo zip com todos os arquivos tocados hoje (ver
-`docs/decisoes.md`) e entregar via SendUserFile. **Excluir
-`runtime/node_modules/`** do zip (50MB, regenerável com `npm install`,
-não deve ir junto).
-
-**Testar de verdade no terminal dele — próximo passo real do Thiago,
-não meu.** O pipeline já rodou de verdade nesta sessão até faltar
-chave de API (ver "Feito"). O que só ele consegue fazer: colocar as
-duas API keys no `.env` e rodar `npm run chat -- --agent=navigator-agent`
-pra validar ponta a ponta, incluindo o failover Claude→Gemini de
-verdade e o comportamento real de cada tier.
-
-**Testar o Navigator em conversa (aqui no Claude Code) também
-continua de pé** — oferecido, ainda não aconteceu. Pode ser feito em
-paralelo ao teste do runtime; são validações diferentes (uma testa o
-*conteúdo* do agente, a outra testa o *runtime* que o executa fora
-daqui).
-
-**Repo 1 / repo 2 — proposta escrita, aguardando confirmação.**
-`docs/arquitetura-repo1-repo2.md` tem a recomendação completa (repo 2
-= 1 por entregável deployável, histórico centralizado no repo 1,
-banco de dados só quando markdown não bastar mais). Registrada como
-PREMISSA meu, não decisão fechada. Quando Thiago confirmar ou corrigir,
-promover pra `docs/decisoes.md` como decisão de verdade.
-
-**Runtime multi-modelo — v0 construído, falta orquestração entre
-agentes.** O scaffold já resolve "conversar com um agente usando
-Claude ou Gemini com failover". O que ainda não existe: acordar um
-agente a partir da recomendação de outro automaticamente (hoje é
-manual — trocar `--order`/`--agent` na mão). Isso é o próximo passo
-real do runtime, não deste v0. Continua valendo: não expandir o
-runtime pra fazer ações reais (escrever arquivo, chamar API de
-terceiro) sem reconstruir a disciplina de aprovação em código — as
-red lines do Claude Code não existem lá fora.
+Independente disso, pro trabalho de fábrica em si (não economia de
+sessão): `npm run testar:navigator` já provou 1 agente funcionando de
+ponta a ponta grátis; o passo seguinte é repetir esse teste (ou
+`npm run chat -- --agent=<nome>`) pros outros 15, um a um — não existe
+hoje orquestração automática entre eles fora do Claude Code. Rodar
+isso não passa pelo Claude Code, não gasta limite.
 
 ## Bloqueado, aguardando decisão
-- **Ticket e custo mensal por cliente** → decide: Thiago → sem isso o
-  `infra-agent` não fecha conta de margem.
-- **Estrutura repo 1 / repo 2** → decide: Thiago → confirmar ou
-  corrigir `docs/arquitetura-repo1-repo2.md`.
-
-## Plano combinado pro Codespace (2026-08-16)
-Thiago definiu a sequência de quando ele subir o repo no Codespace —
-registrado aqui pra a sessão de lá seguir sem reperguntar:
-- **Chaves de API** — não pedir agora. Pedir `ANTHROPIC_API_KEY` e
-  `GEMINI_API_KEY` só no momento em que ele estiver montando o
-  `runtime/.env` de verdade no terminal do Codespace (resolve também o
-  antigo pendente "chave do Gemini: AI Studio vs Vertex" — ele decide
-  isso na hora, ao gerar a chave).
-- **Teste do chat** — não vai ser só terminal. Depois de subir o
-  Codespace e dar o primeiro commit lá, o plano é gerar uma página
-  visual (frontend simples) pra testar o `runtime/` por ali, não só
-  via `npm run chat` no terminal. Ainda não desenhado — é trabalho novo
-  quando chegar a hora, não existe hoje nenhum HTML/servidor no
-  `runtime/`.
+- **Orquestração automática entre agentes no `runtime/`** → decide:
+  Thiago (quando quiser voltar a investir nisso) → recomendação padrão:
+  não é urgente, o `runtime/` já prova o conceito (1 agente, chave
+  grátis, sem tocar no limite do Claude Code); expandir pra 16 é
+  trabalho novo, não bug.
+- **Conteúdo do repositório Genesis-Lovable pré-existente** → o merge
+  trouxe um projeto Lovable inteiro (`.lovable/`, `PROJECT_STATE.md`,
+  `AGENTS.md`) pra dentro deste repo da fábrica de agentes. Não avaliei
+  se isso é intencional (2 projetos no mesmo repo) ou se deveria ter
+  ficado separado → decide: Thiago → sem isso, não dá pra saber se
+  `docs/arquitetura-repo1-repo2.md` (proposta de repo 1 = fábrica /
+  repo 2 = entregável por cliente) ainda faz sentido do jeito que foi
+  desenhada.
 
 ## Decisões desta sessão ainda não registradas
-Nada pendente — tudo foi para `docs/decisoes.md` conforme aconteceu.
+Nada pendente — tudo foi para `docs/decisoes.md` conforme aconteceu
+(4 entradas datadas 2026-08-20, mais a de `/rodar` e a de economia de
+sessão).
 
 ## Arquivos tocados
-Ver `docs/roadmap-time.md` (histórico até 2026-08-15) e
-`docs/decisoes.md` (2026-08-16 em diante) — registro cronológico
-completo do que foi construído e por quê.
+Commit `c7b86df` (65 arquivos) — ver `git show --stat c7b86df`. Commit
+`0b6249d` — merge do histórico não-relacionado do GitHub, feito por
+Thiago diretamente no terminal, arquivos não revisados por mim.
+Resumo por tema em `docs/decisoes.md`, entradas 2026-08-20.
 
 ## Contexto mínimo para retomar
-Missões Tech é consultoria profissional cristã (tecnologia para
-igrejas, ministérios e empreendedores). O diretor constrói por prompt,
-não escreve código à mão. Subagents são o padrão, Agent Teams é
-exceção cara. O orquestrador nunca é agente — subagente não acorda
-subagente. Nenhum projeto de cliente existe ainda: só a fábrica.
+Este repositório agora tem 2 históricos de origem diferente mesclados:
+a fábrica de 16 agentes (o que este projeto sempre foi) + um projeto
+Lovable pré-existente que morava no GitHub remoto
+(`Genesis-Lovable`) antes do primeiro push. `runtime/` roda com chave
+de API própria (Groq/Cerebras grátis, Anthropic/Gemini pagas),
+separada do limite de uso do Claude Code — testar agentes por ali não
+gasta o limite semanal/diário da sessão.
 
 ## O que NÃO fazer ao retomar
-- Não instalar framework de orquestração (ECC, superpowers inteiro,
-  LangChain, NeMo Guardrails). Já avaliados e rejeitados: são runtimes
-  ou sistemas concorrentes. Conceito serve, framework não.
-- Não criar agente para produto — sobrepõe o `business-agent`.
-- Não apagar `docs/_quarentena/` ainda (nem `docs/_quarentena/agents/`,
-  onde está o `intake-agent` deprecado): aguarda uma rodada de uso.
-- Não reabrir a numeração do fluxo: fonte única é
-  `.claude/rules/orchestration.md`.
-- Não assumir stack de backend antes do "aprovado" do diretor.
-- Não tratar `docs/arquitetura-repo1-repo2.md` como decisão fechada —
-  é proposta/PREMISSA até Thiago confirmar.
-- Não expandir `runtime/` pra fazer ação real (escrever arquivo,
-  chamar API externa, gastar dinheiro) sem antes reconstruir em
-  código a disciplina de aprovação que os hooks do Claude Code dão de
-  graça aqui — lá fora isso não vem junto.
-
+- Não assumir que `docs/arquitetura-repo1-repo2.md` (proposta repo 1 /
+  repo 2) ainda reflete a realidade — o merge com o Genesis-Lovable
+  pode ter mudado a pergunta. Confirmar com Thiago antes de tratar como
+  decisão fechada (já era PREMISSA antes disso).
+- Não reabrir os 3 bugs corrigidos nesta sessão sem ler
+  `docs/decisoes.md` primeiro — a causa raiz de cada um já está
+  documentada com evidência, inclusive uma revogação registrada (o
+  bit de execução dos hooks "consertado" que na verdade não tinha sido,
+  achado pelo próprio `fiscal-agent` numa 2ª auditoria).
+- Não gastar o próximo `npm test`/`npm run testar:*` achando que precisa
+  confirmar de novo o que já passou — só rerrode se algo em
+  `runtime/src/` ou `.claude/hooks/` mudar depois deste registro.
 
 ---
-**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T14:03:38Z (motivo: other).
-O cabeçalho deste arquivo não é de hoje — provável que `/retomar` não
-rodou nesta sessão. Trate o conteúdo acima como potencialmente
-desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\a503f763-5f06-4070-9b72-bb58d61e5340.jsonl`.
-Próxima sessão: confira `git log --oneline -5` antes de assumir que
-este arquivo reflete o estado real do repositório.
+**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T15:58:50Z (motivo: other).
