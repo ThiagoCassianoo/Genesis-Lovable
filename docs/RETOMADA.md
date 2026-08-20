@@ -55,19 +55,21 @@ auditados e commitados.
   `runtime/logs/testes/navigator-agent-2026-08-20T14-20-41-185Z.txt`.
 
 ## Feito nesta 2ª rodada (economia de sessão, 2026-08-20 ~16h)
-- `CLAUDE.md` reduzido de 223 → 131 linhas: cortadas 3 narrativas
+- `CLAUDE.md` reduzido de 222 → 131 linhas: cortadas 3 narrativas
   históricas (ficaram só em `docs/decisoes.md`), o exemplo ilustrativo
   do fim, tabelas enxutas. As 8 Regras de Ouro numeradas e os 🔒
   ficaram intactos (citados por número em outros arquivos). Regra 1 de
   economia de sessão reforçada pra cobrir "pasta", não só "arquivo".
-- **Status line configurada e completa** (`~/.claude/settings.json`,
-  via agente `statusline-setup`) — mostra contexto da sessão + rate
-  limit semanal (`rate_limits.seven_day`) + janela de 5h
-  (`rate_limits.five_hour`; não existe campo "diário" no schema, por
-  isso o rótulo é "5h", não "Dia" — verificado no schema real, não
-  suposto). Formato: `Contexto: X% usado (Y% livre) . Semana: Z% . 5h: W%`.
-  Qualquer ajuste futuro nela precisa passar pelo agente
-  `statusline-setup` de novo (não editar `settings.json` na mão).
+- **Status line configurada** (`~/.claude/settings.json`, via agente
+  `statusline-setup`) — mostra contexto da sessão + rate limit semanal
+  (`rate_limits.seven_day`) + janela de 5h (`rate_limits.five_hour`;
+  não existe campo "diário" no schema — por isso "5h", não "Dia").
+  Formato: `Contexto: X% usado (Y% livre) . Semana: Z% . 5h: W%`.
+  **Não confirmado visualmente ainda** — o comando depende de `jq`, e
+  o `fiscal-agent` não achou `jq` no PATH do bash local (pode ser só o
+  shell dele, não o do Claude Code — checar de verdade antes de
+  assumir que funciona). Ajuste futuro passa pelo agente
+  `statusline-setup`, não editar `settings.json` na mão.
 - Descoberto e explicado ao diretor: limite semanal ≠ diário (janelas
   de reset diferentes) — não é bug, é a soma acumulada dos 7 dias vs.
   o dia corrente.
@@ -109,15 +111,18 @@ isso não passa pelo Claude Code, não gasta limite.
   desenhada.
 
 ## Decisões desta sessão ainda não registradas
-Nada pendente — tudo foi para `docs/decisoes.md` conforme aconteceu
-(4 entradas datadas 2026-08-20, mais a de `/rodar` e a de economia de
-sessão).
+Nada — a entrada sobre o enxugamento do `CLAUDE.md` e o uso de
+`--no-verify` acabou de ser gravada em `docs/decisoes.md` (mesma
+rodada deste registro).
 
 ## Arquivos tocados
-Commit `c7b86df` (65 arquivos) — ver `git show --stat c7b86df`. Commit
+Commit `c7b86df` (65 arquivos, `git show --stat c7b86df`). Commit
 `0b6249d` — merge do histórico não-relacionado do GitHub, feito por
 Thiago diretamente no terminal, arquivos não revisados por mim.
-Resumo por tema em `docs/decisoes.md`, entradas 2026-08-20.
+Commit `567f3c7` — `CLAUDE.md` + `docs/RETOMADA.md` (enxugamento),
+feito por Thiago com `git commit --no-verify` (rotina de
+infraestrutura, sem entrega de agente — uso previsto pelo próprio
+`.githooks/pre-commit`). Resumo por tema em `docs/decisoes.md`.
 
 ## Contexto mínimo para retomar
 Este repositório agora tem 2 históricos de origem diferente mesclados:
@@ -126,7 +131,8 @@ Lovable pré-existente que morava no GitHub remoto
 (`Genesis-Lovable`) antes do primeiro push. `runtime/` roda com chave
 de API própria (Groq/Cerebras grátis, Anthropic/Gemini pagas),
 separada do limite de uso do Claude Code — testar agentes por ali não
-gasta o limite semanal/diário da sessão.
+gasta o limite semanal/5h da sessão (não existe janela "diária" real,
+só 5h e 7 dias — ver status line).
 
 ## O que NÃO fazer ao retomar
 - Não assumir que `docs/arquitetura-repo1-repo2.md` (proposta repo 1 /
