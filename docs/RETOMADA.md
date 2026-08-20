@@ -257,18 +257,11 @@ subagente. Nenhum projeto de cliente existe ainda: só a fábrica.
   código a disciplina de aprovação que os hooks do Claude Code dão de
   graça aqui — lá fora isso não vem junto.
 
----
-**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T12:31:12Z (motivo: other).
-O cabeçalho deste arquivo não é de hoje — provável que `/retomar` não
-rodou nesta sessão. Trate o conteúdo acima como potencialmente
-desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\b546cb18-5430-4c85-8168-2ffad66a13c3.jsonl`.
-Próxima sessão: confira `git log --oneline -5` antes de assumir que
-este arquivo reflete o estado real do repositório.
 
 ---
-**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T12:32:02Z (motivo: other).
+**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T14:03:38Z (motivo: other).
 O cabeçalho deste arquivo não é de hoje — provável que `/retomar` não
 rodou nesta sessão. Trate o conteúdo acima como potencialmente
-desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\83c37ea3-b9fe-4a80-8a8d-2766666d8662.jsonl`.
+desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\a503f763-5f06-4070-9b72-bb58d61e5340.jsonl`.
 Próxima sessão: confira `git log --oneline -5` antes de assumir que
 este arquivo reflete o estado real do repositório.
