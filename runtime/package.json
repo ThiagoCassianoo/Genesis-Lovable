@@ -3,13 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Runtime v0 para rodar os agentes .claude/agents/*.md fora do Claude Code, com failover Claude -> Gemini.",
+  "description": "Runtime v0 para rodar os agentes .claude/agents/*.md fora do Claude Code, com failover Claude -> Groq -> Cerebras -> Gemini.",
   "scripts": {
-    "chat": "node src/cli.js"
+    "chat": "node src/cli.js",
+    "test": "node scripts/self-test.mjs && node scripts/test-router.mjs && node scripts/test-orchestrator.mjs && node scripts/simular.mjs --limpar",
+    "test:orchestrator": "node scripts/test-orchestrator.mjs",
+    "test:self": "node scripts/self-test.mjs",
+    "test:router": "node scripts/test-router.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "custos": "node scripts/custos-report.mjs",
+    "painel": "node server/index.js",
+    "simular": "node scripts/simular.mjs",
+    "testar:navigator": "node scripts/testar-navigator.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
     "@google/genai": "^2.17.1",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "groq-sdk": "^0.9.1",
+    "openai": "^4.104.0"
   }
 }

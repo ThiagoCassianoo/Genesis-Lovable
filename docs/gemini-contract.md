@@ -10,7 +10,7 @@ alucinação técnica que `fiscal-agent` item 1b existe pra pegar.
 
 ## O que não muda
 - O **conteúdo** do agente (system prompt, contrato, formato de saída)
-  é o mesmo — `runtime/src/agent-loader.js` lê o mesmo `.md`, não
+  é o mesmo — `runtime/src/agentloader.js` lê o mesmo `.md`, não
   existe uma segunda versão do prompt pra Gemini.
 - O objetivo (FATO/HIPÓTESE/PREMISSA, nunca travar, formato fixo) não
   é negociável por provider — se Gemini não conseguir seguir isso de

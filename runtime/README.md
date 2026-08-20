@@ -20,7 +20,7 @@ agente, falar com provider, loop de chat), nada além disso.
 3. `npm run chat -- --agent=navigator-agent`
 
 ## Como funciona
-- `src/agent-loader.js` lê o `.md` do agente — o mesmo arquivo que o
+- `src/agentloader.js` lê o `.md` do agente — o mesmo arquivo que o
   Claude Code usa — e separa frontmatter do corpo. O corpo vira o
   system prompt. Reaproveita 100% do trabalho já feito nos 16 agentes;
   nenhum agente foi reescrito pra isso funcionar. Também lê

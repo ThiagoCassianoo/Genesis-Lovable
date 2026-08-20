@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { resolve } from "node:path";
 
 /**
  * Lê um .claude/agents/<nome>.md e separa frontmatter (name,
@@ -11,7 +11,11 @@ import { join } from "node:path";
  * explícito abaixo), nunca silenciosamente devolvendo lixo.
  */
 export function loadAgent(agentName, { agentsDir = "../.claude/agents" } = {}) {
-  const path = join(process.cwd(), agentsDir, `${agentName}.md`);
+  // resolve (não join): quando agentsDir já vem absoluto (caso do
+  // painel web, que monta o caminho a partir de REPO_ROOT), resolve()
+  // descarta process.cwd() em vez de grudar os dois — era isso que
+  // causava o path duplicado no erro "Agente não encontrado".
+  const path = resolve(process.cwd(), agentsDir, `${agentName}.md`);
 
   let raw;
   try {
@@ -53,11 +57,27 @@ export function loadAgent(agentName, { agentsDir = "../.claude/agents" } = {}) {
     );
   }
 
+  // CORREÇÃO 2026-08-17 (auditoria): `model` não era validado, só
+  // `model_fallback` — assimetria perigosa. Se alguém escrevesse
+  // `model: claude-opus-5` (o ID real do modelo, erro plausível) ou
+  // `model: inherit` (valor que o Claude Code aceita de verdade nos
+  // agentes), o loader aceitava, o claude-provider lançava "tier
+  // desconhecido", o erro NÃO é transiente, e o router fazia failover
+  // silencioso. Resultado: um agente opus crítico (fiscal, security)
+  // passaria a rodar em Llama pra sempre, e a única pista seria uma
+  // linha que parece rate limit. Mesma proteção do campo irmão.
+  const model = frontmatter.model || "sonnet";
+  if (model !== "opus" && model !== "sonnet") {
+    throw new Error(
+      `"${agentName}.md" tem model="${model}" — só "opus" ou "sonnet" são válidos (é o TIER, não o ID do modelo; o ID vem de .env/provider).`
+    );
+  }
+
   return {
     name: frontmatter.name,
     description: frontmatter.description || "",
-    model: frontmatter.model || "sonnet", // tier no Claude: opus | sonnet
-    modelFallback, // tier no Gemini (fallback): capaz | economico
+    model,
+    modelFallback,
     systemPrompt: body.trim(),
   };
 }

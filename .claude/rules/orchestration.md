@@ -34,9 +34,12 @@ grava o brief em `docs/clientes/<nome>/brief.md`. O orquestrador
 (Claude Code lendo o `CLAUDE.md`, não um subagente — e tecnicamente um
 subagente não consegue acordar outro, por isso quem aciona os
 especialistas recomendados é sempre o orquestrador) lê o brief,
-**reafirma o entendimento em 3-5 frases e espera confirmação**, e só
-então monta a tabela de delegação. Gate: confirmação do diretor.
-`/intake`
+**registra o entendimento em 3-5 frases no log de delegação (Registro
+de delegação, abaixo) e já aciona os especialistas recomendados** —
+sem parar pra esperar confirmação nesse ponto (mudança 2026-08-16:
+Thiago decidiu auditar no final em vez de aprovar etapa por etapa —
+ver Regra de Ouro 1 no `CLAUDE.md`). Gate: nenhum aqui — o registro em
+log é o que sustenta a auditoria da Etapa 5/6. `/intake`
 
 *Histórico: até 2026-08-15 esta etapa usava `intake-agent`
 (single-shot, sem pergunta) — deprecado, ver
@@ -64,41 +67,101 @@ do checklist. Gate: o Conselho recomenda, o diretor decide. `/conselho`
 
 **2. Análise** — só os especialistas que a task exige. Justificar em
 uma linha por que cada um entrou e por que os outros ficaram de fora.
-Gate: nenhuma edição de arquivo. `/analyze`
+Gate: nenhuma edição de arquivo (continua verdade — análise é
+só-leitura por natureza, isso nunca dependeu de aprovação, dependia de
+escopo). Segue direto pra Etapa 3, sem pausa pra confirmação. `/analyze`
 
 **3. Plano** — skill `swarm-planner`: tarefas atômicas com `depends_on`
 explícito, ondas, critério de aceite e validação por tarefa. Marcar o
-que exige aprovação especial. Gate: zero código. `/plan`
+que exige aprovação especial (ex.: uma tarefa que só consegue avançar
+tocando numa das 4 ações de `guard-red-lines.sh` — essa sim para e
+pede `/aprovar` quando chegar nela). Gate: zero código nesta etapa
+(continua verdade — plano não escreve `src/`). Segue direto pra Etapa
+4, sem pausa pra confirmação. `/plan`
 
 **4. Implementação** — skill `parallel-task`: acorda **só tarefa
-desbloqueada**, em ondas. Gate: aprovação do diretor **por onda**, não
-uma aprovação geral. Só `implementation-agent` edita. `/build`
+desbloqueada**, em ondas, sem pausar entre ondas pra aprovação geral
+(mudança 2026-08-16 — a auditoria acontece na Etapa 5, não onda a
+onda). Só `implementation-agent` edita. Gate real que sobra: só as **5**
+ações travadas por `guard-red-lines.sh` (instalar dependência, apagar
+arquivo, produção/deploy, commit, e descartar trabalho não-commitado) —
+o hook bloqueia essas mecanicamente com exit 2, mudança de regra em
+texto não desativa a trava física. Desbloqueio: `/aprovar` nas 3
+primeiras; commit exige marcador do `fiscal-agent`; descarte de
+trabalho não tem desbloqueio automático. Ver a tabela no `CLAUDE.md`.
+*(Corrigido 2026-08-17: dizia "4 ações" — o hook sempre bloqueou 5, e a
+5ª nunca esteve documentada.)* `/build`
 
 **5. Auditoria** — `qa-agent` (funciona?) → `security-agent` (se houver
 login/pagamento/dado pessoal) → `reviewer-agent` (padrão e conversão) →
 `fiscal-agent` (a entrega cumpre a documentação?). Gate: veredito
 `pass` de todos os aplicáveis. `/audit`
 
-**6. Fechamento** — obrigatório, executado por `docs-agent` (único
-autorizado a escrever fora de `src/`): o que funcionou vira entrada em
-`docs/conhecimento/`; o que quebrou vira post-mortem **e** regra nova
-no agente responsável; decisão revogada na prática vira linha em
-`docs/decisoes.md`. Entrega que não ensina nada faz o próximo projeto
-repetir o mesmo erro.
+**6. Fechamento** — obrigatório, executado por `docs-agent`: o que
+funcionou vira entrada em `docs/conhecimento/`; o que quebrou vira
+post-mortem **e a regra nova PROPOSTA** em `docs/decisoes.md`, marcada
+`[a aplicar pelo diretor]` com arquivo e seção nomeados; decisão
+revogada na prática vira linha em `docs/decisoes.md`. Entrega que não
+ensina nada faz o próximo projeto repetir o mesmo erro.
+*(Corrigido 2026-08-17: exigia "regra nova NO agente responsável" —
+escrita em `.claude/agents/`, que **nenhum dos 16 agentes pode fazer**.
+O `fiscal-agent` cobrava como gate e reprovava permanentemente todo
+fechamento que tivesse tido falha. Raciocínio em `rules/memory.md`.)*
 
 ## Roteamento por linha de produto
-`intake-agent` roda sempre primeiro (Etapa 1), antes de qualquer linha
-abaixo — independe do produto.
-- **Site / landing page** — business → creative → technical →
-  implementation → reviewer → fiscal.
-- **Sistema / SaaS** — business → backend-master → technical →
-  implementation → qa → security → infra → reviewer → fiscal.
-- **Marketing** — marketing-master (business entra se a dúvida for de
-  oferta ou posicionamento).
+`navigator-agent` roda sempre primeiro (Etapa 1), antes de qualquer
+linha abaixo — independe do produto. *(Corrigido 2026-08-17: esta
+linha dizia `intake-agent`, que foi deprecado em 2026-08-16 e movido
+pra `docs/_quarentena/agents/`. Como este arquivo é `@import`ado em
+TODA sessão, ele estava ensinando o orquestrador a acionar um agente
+que não existe mais em `.claude/agents/`.)*
+**Corrigido em 2026-08-17 (auditoria de arquitetura).** A versão
+anterior desta tabela tinha três defeitos que travavam o fluxo na
+prática: (1) a linha Site/landing não tinha `security-agent` nem
+`infra-agent`, contradizendo a regra obrigatória escrita logo abaixo
+dela — e toda landing da casa captura lead (dado pessoal) e vai a
+deploy; (2) nenhuma linha mostrava a Etapa 3 (Plano), então
+`technical → implementation` sugeria pulo direto — mas o
+`implementation-agent` tem trava explícita de "sem critério de aceite,
+pare e pergunte", e critério de aceite nasce no Plano. O fluxo
+"sem pausa" travava no elo mais caro; (3) a linha Marketing não
+passava pelo `fiscal-agent`, apesar de ele ser obrigatório antes de
+qualquer entrega.
 
-`security-agent` é obrigatório com login, pagamento, dado pessoal ou
-integração externa. `infra-agent` é obrigatório antes do primeiro
-deploy. `fiscal-agent` é obrigatório antes de qualquer entrega sair.
+- **Site / landing page** — `navigator-agent` → `business-agent` → `creative-agent` →
+  `technical-agent` → **Plano (`swarm-planner`)** → `implementation-agent` →
+  `qa-agent`¹ → `security-agent`² → `reviewer-agent` → `infra-agent`³ → `fiscal-agent` → `docs-agent`.
+- **Sistema / SaaS** — `navigator-agent` → `business-agent` → `backend-master` →
+  `creative-agent`⁴ → `technical-agent` → **Plano (`swarm-planner`)** →
+  `implementation-agent` → `qa-agent` → `security-agent` → `reviewer-agent` → `infra-agent`³ →
+  `fiscal-agent` → `docs-agent`.
+- **Marketing** — `navigator-agent` → `marketing-master` (`business-agent` entra
+  se a dúvida for de oferta ou posicionamento) → `fiscal-agent` → `docs-agent`.
+
+¹ `qa-agent` na linha Site/landing entra **se houver formulário ou
+integração** (WhatsApp, e-mail, agendamento) — o que na prática é
+quase sempre. Sem ele, ninguém dono de "funciona?" olha o formulário;
+sobra o item 6 do checklist do `reviewer`, que é auditoria visual
+fazendo trabalho funcional.
+² `security-agent` é obrigatório com login, pagamento, **dado pessoal**
+ou integração externa. Captura de lead É dado pessoal — por isso ele
+está na linha Site/landing agora.
+³ `infra-agent` é obrigatório **antes do primeiro deploy** — vem
+depois do `reviewer` porque deploy é a última coisa antes de sair.
+⁴ `creative-agent` entrou na linha Sistema/SaaS: o contrato dele
+especifica os 9 estados de interface (vazio, carregando, erro,
+sessão expirada, conflito de horário...), que são exatamente o que um
+sistema precisa e uma landing não. Sem ele ali, o `reviewer` reprovava
+depois pelo bloco "Estados de interface" — retrabalho embutido no
+roteamento.
+
+`fiscal-agent` é obrigatório antes de qualquer entrega sair, nas três
+linhas. `docs-agent` fecha (Etapa 6) nas três — ele e os
+`conselho-*` não apareciam em nenhuma linha antes, o que deixava 4 dos
+16 agentes fora da estrutura que o `fiscal-agent` usa pra auditar
+roteamento. Os `conselho-*` continuam fora da tabela de propósito:
+são acionados pelo checklist binário da Etapa 1b, não pela linha de
+produto.
 
 Pedido que dependa de decisão pendente (`docs/decisoes.md`): avisar
 antes de aceitar prazo. Não prometer o que ainda não foi decidido.
@@ -113,9 +176,9 @@ economia possível.
 | Proibido | Por quê |
 |---|---|
 | Conselheiro ↔ conselheiro | Ancoragem mata o valor das 3 leituras |
-| Especialista → implementação direto | Só o orquestrador libera, após aprovação |
+| Especialista → implementação direto | Só o orquestrador libera (a passagem é dele, não do especialista — não é mais questão de aprovação do diretor desde 2026-08-16, é questão de quem enxerga o todo) |
 | Agente → diretor direto | O orquestrador sintetiza; 5 relatórios crus é o problema que o sistema resolve |
-| Agente aprovando ação de outro | Permissão é do diretor, via gate |
+| Agente aprovando ação de outro | As 4 ações irreversíveis (`guard-red-lines.sh`) são do diretor, via `/aprovar` — nenhum agente libera outro |
 
 ## Registro de delegação
 Ao acordar alguém, o orquestrador declara em uma linha:

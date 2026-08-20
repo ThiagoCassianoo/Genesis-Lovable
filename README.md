@@ -1,8 +1,18 @@
 # Missões Tech — Sistema de Agentes (Claude Code)
 
-Sistema operacional da consultoria: 16 agentes reais que o Claude Code
-carrega sozinho, com gate de aprovação, economia de contexto, trava
-mecânica das linhas vermelhas e fiscalização das próprias entregas.
+Sistema operacional da consultoria: 16 agentes que o Claude Code carrega
+sozinho, com trava mecânica nas 5 ações irreversíveis, economia de
+contexto e fiscalização das próprias entregas.
+
+**Estado honesto (2026-08-17):** os 16 agentes existem como contrato
+validado — frontmatter, escopo e formato de saída conferidos a cada
+`npm test` — e o `runtime/` roda com fallback multi-provider coberto
+por 26 testes. O que ainda **não** aconteceu: nenhum agente rodou numa
+entrega de cliente real de ponta a ponta. "Contrato pronto" não é
+"valor comprovado", e a distinção fica aqui de propósito: a versão
+anterior deste README dizia "16 agentes reais, com gate de aprovação",
+numa época em que o gate era burlável por qualquer comando com aspas
+(ver `docs/decisoes.md`, 2026-08-17).
 
 ## Instalar num projeto
 

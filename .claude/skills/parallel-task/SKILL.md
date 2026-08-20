@@ -3,11 +3,12 @@ name: parallel-task
 description: >
   [INVOCAÇÃO EXPLÍCITA] Lê um plano gerado pelo swarm-planner e executa
   as tarefas em ondas, acordando como subagent SÓ as tarefas
-  desbloqueadas. Use na etapa 4 (Implementation), uma onda por vez,
-  com aprovação do diretor antes de cada onda.
+  desbloqueadas. Use na etapa 4 (Implementation). As ondas encadeiam
+  sem parar pra aprovação entre elas (mudança 2026-08-16); a execução
+  só para nas 4 ações irreversíveis travadas por `guard-red-lines.sh`.
 metadata:
   invocation: explicit-only
-  adaptado_de: am-will/swarms (parallel-task), com gate de aprovação por onda adicionado
+  adaptado_de: am-will/swarms (parallel-task)
 ---
 
 # Executor em ondas

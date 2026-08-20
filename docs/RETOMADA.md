@@ -139,9 +139,20 @@ imediato" abaixo.
 
 ## Próximo passo imediato
 
-**`git init` — recomendado, não feito ainda (decisão sua).** A trava
-de commit mais citada do sistema depende disto pra funcionar de
-verdade. Quando quiser, eu inicializo e faço o primeiro commit.
+**`git init` feito, zip entregue.** Branch `main`, primeiro commit
+(99 arquivos). Achado ao vivo importante durante isso, registrado em
+`docs/decisoes.md`: `.claude/hooks/*` só trava dentro de uma sessão
+real do Claude Code CLI — esta sessão (Cowork) não passa por ali, meu
+primeiro `git commit` passou sem gate. Quem trava commit de qualquer
+lugar (terminal, Codespace) é `.githooks/pre-commit` (hook nativo do
+git), que precisa de `git config core.hooksPath .githooks` — **não
+vem ativado sozinho ao clonar/copiar o repo, é config local, não
+versionada**. Ativado aqui e testado (bloqueia sem marcador de
+fiscal). **No Codespace, rodar esse `git config` de novo é obrigatório
+— primeira coisa a fazer, senão a trava de commit não existe lá.**
+
+Zip entregue via `SendUserFile`, com `.git` (baseline já commitado) e
+sem `runtime/node_modules/` (regenerar com `npm install`).
 
 **Fix guiado — `disable-model-invocation` nos 2 skills.** Passo a passo
 pro Thiago (não corrigir por ele):
@@ -245,3 +256,19 @@ subagente. Nenhum projeto de cliente existe ainda: só a fábrica.
   chamar API externa, gastar dinheiro) sem antes reconstruir em
   código a disciplina de aprovação que os hooks do Claude Code dão de
   graça aqui — lá fora isso não vem junto.
+
+---
+**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T12:31:12Z (motivo: other).
+O cabeçalho deste arquivo não é de hoje — provável que `/retomar` não
+rodou nesta sessão. Trate o conteúdo acima como potencialmente
+desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\b546cb18-5430-4c85-8168-2ffad66a13c3.jsonl`.
+Próxima sessão: confira `git log --oneline -5` antes de assumir que
+este arquivo reflete o estado real do repositório.
+
+---
+**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T12:32:02Z (motivo: other).
+O cabeçalho deste arquivo não é de hoje — provável que `/retomar` não
+rodou nesta sessão. Trate o conteúdo acima como potencialmente
+desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\83c37ea3-b9fe-4a80-8a8d-2766666d8662.jsonl`.
+Próxima sessão: confira `git log --oneline -5` antes de assumir que
+este arquivo reflete o estado real do repositório.

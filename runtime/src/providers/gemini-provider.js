@@ -25,7 +25,7 @@ function getClient() {
 
 /**
  * @param {{systemPrompt: string, history: {role: "user"|"assistant", text: string}[], userMessage: string, tier?: "capaz"|"economico"}} params
- * @returns {Promise<string>}
+ * @returns {Promise<{text: string, usage: {input: number, output: number}}>}
  */
 export async function sendToGemini({ systemPrompt, history, userMessage, tier = "capaz" }) {
   const model = MODEL_BY_TIER[tier];
@@ -47,5 +47,30 @@ export async function sendToGemini({ systemPrompt, history, userMessage, tier = 
     config: { systemInstruction: systemPrompt },
   });
 
-  return response.text;
+  // Resposta vazia é ERRO, não sucesso (auditoria 2026-08-17). No SDK
+  // @google/genai, `response.text` é `string | undefined` — vem
+  // undefined quando o candidato foi bloqueado por safety ou cortado
+  // por MAX_TOKENS. Antes isso virava `text: undefined` no histórico e
+  // quebrava o turno SEGUINTE com um 400 sem relação aparente.
+  const text = response.text;
+  if (!text) {
+    const reason = response.candidates?.[0]?.finishReason ?? "?";
+    throw new Error(`Gemini devolveu resposta vazia (finishReason=${reason}) — tratando como falha pra não corromper o histórico.`);
+  }
+
+  // thoughtsTokenCount NÃO está incluído em candidatesTokenCount nos
+  // modelos de raciocínio (gemini-2.5-pro, tier "capaz"). Sem somar,
+  // o relatório de custo subnotifica justamente os agentes que mais
+  // raciocinam (fiscal, security, backend-master).
+  const outputTokens =
+    (response.usageMetadata?.candidatesTokenCount ?? 0) +
+    (response.usageMetadata?.thoughtsTokenCount ?? 0);
+
+  return {
+    text,
+    usage: {
+      input: response.usageMetadata?.promptTokenCount ?? 0,
+      output: outputTokens,
+    },
+  };
 }

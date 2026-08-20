@@ -43,11 +43,56 @@ de cliente, credencial ou informação sensível.
 ## Ciclo de fechamento (obrigatório, não é boa intenção)
 Nenhuma entrega é dada como concluída sem:
 1. O que funcionou → entrada em `docs/conhecimento/`.
-2. O que quebrou → post-mortem **e** regra nova no agente responsável.
+2. O que quebrou → post-mortem **e** a regra nova **proposta** em
+   `docs/decisoes.md`, marcada `[a aplicar pelo diretor]`, dizendo
+   exatamente qual arquivo de agente e qual seção mudariam.
 3. Decisão revogada na prática → linha nova em `docs/decisoes.md`.
+
+**Por que "proposta" e não "aplicada" (corrigido 2026-08-17).** A
+redação anterior era *"regra nova no agente responsável"* — e a
+auditoria de arquitetura provou que isso era **impossível de cumprir**:
+nenhum dos 16 agentes pode escrever em `.claude/agents/`. O
+`docs-agent` é explicitamente barrado (*"Proibido, sem exceção:
+qualquer coisa em `src/`, `.claude/agents/`, `.claude/rules/`"*), o
+`implementation-agent` só toca `src/`, e os outros 14 são só-leitura.
+Como o `fiscal-agent` cobrava esse item como gate, ele reprovava
+**permanentemente** todo fechamento que tivesse tido qualquer falha —
+uma trava que nenhum trabalho bem-feito conseguia destravar.
+
+Duas saídas eram possíveis: dar ao `docs-agent` permissão de reescrever
+contratos de agente, ou mudar a regra. Escolhida a segunda, por dois
+motivos: (1) mudar o contrato de um agente é decisão de arquitetura, e
+`agent-contracts.md` já diz que **nenhum agente aprova o próprio
+resultado** — um agente reescrevendo o contrato de outro é a mesma
+falha de separação; (2) dar escrita em `.claude/agents/` ao `docs-agent`
+abriria caminho pro sistema se auto-modificar sem o diretor ver, que é
+o oposto do modelo "audito no final".
+
+**O que o `fiscal-agent` checa agora:** existe a proposta registrada,
+com arquivo e seção nomeados? Se sim, o fechamento passa. A aplicação
+é do diretor — e é rápida, porque a proposta já vem escrita.
 
 Entrega fechada sem esse passo é entrega que não ensinou nada ao
 sistema — e o próximo projeto repete o mesmo erro.
+
+## Faixa comercial — fora do escopo do time, por decisão (2026-08-17)
+Preço da Missões Tech, proposta comercial e contrato **não têm agente
+dono, e isso é deliberado**. A auditoria apontou como "lacuna", mas
+criar um 17º agente falharia o critério 1 de contratação
+(`agent-contracts.md`): o trabalho não existe em volume — não há
+cliente pago ainda — e o dado que ele precisaria (custo-hora, margem
+alvo, ticket) só o diretor tem, e está registrado como pendente em
+`docs/decisoes.md` desde 2026-08-15.
+
+Onde isso aparece no fluxo, o agente **devolve a pergunta ao diretor
+com recomendação**, e segue com o que não depende dela (é a regra
+"nunca supor em silêncio, nunca travar"):
+- `infra-agent` — janela de suporte e mensalidade de manutenção.
+- `backend-master` — condição 4 da aprovação de stack (contrato com
+  janela explícita antes do deploy).
+
+Revisar quando: existir o primeiro cliente pago e o ticket estiver
+registrado. Aí o volume justifica, e o critério 1 passa.
 
 ## Lembrar / esquecer / nunca guardar
 **Lembrar:** decisões aprovadas, preferências visuais, stack definida,

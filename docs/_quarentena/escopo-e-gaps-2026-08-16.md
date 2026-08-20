@@ -110,3 +110,29 @@ projeto de sistema sai do papel — mas um site institucional simples
 (sem backend) já poderia rodar hoje, sem essa decisão. Se você tem um
 cliente de site na fila, isso destrava trabalho sem esperar a decisão
 de stack.
+
+---
+
+## Movido pra quarentena em 2026-08-17
+
+Motivo (auditoria completa do repositório):
+1. **Doc morto** — `grep -r` no repo inteiro não encontrou NENHUMA
+   referência a este arquivo, de nenhum outro arquivo. Era o único
+   `.md` de `docs/` nessa situação.
+2. **Contém evidência falsa** — cita o commit `75f71a6` como prova
+   ("com evidência"), mas o repositório tem um único commit
+   (`1aa90ea`) e esse hash não resolve. É exatamente o tipo de
+   alucinação técnica que o `fiscal-agent` item 1b existe pra pegar.
+3. **Totalmente obsoleto** — afirma "14 subagentes, 9 comandos, 2
+   hooks" (hoje: 16 / 10 / 8); diz que a stack de backend está
+   "aguardando aprovação há 2 dias" (aprovada no mesmo dia,
+   `decisoes.md`); diz "nenhum agente mede consumo real" (revogado
+   pelo `usage-logger.js`); diz "9Router parado no meio" (revogado
+   explicitamente em `decisoes.md`).
+4. **Afirmava como fato o que estava quebrado** — "Gate de aprovação
+   mecânico... aqui está em código, não em boa vontade". A auditoria
+   de 2026-08-17 provou que o `guard-red-lines.sh` era burlável por
+   qualquer comando com aspas.
+
+Quarentena, não remoção — cumprindo a política de descarte registrada
+em `docs/decisoes.md` (2026-08-15).

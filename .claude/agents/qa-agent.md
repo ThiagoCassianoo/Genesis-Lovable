@@ -23,7 +23,18 @@ lindo que não salva o agendamento passa no reviewer e reprova em você.
   usuário enxerga. Tela branca é reprovação.
 - **Regressão** — o que funcionava na etapa anterior continua
   funcionando?
-- **Permissão** — usuário comum não alcança função de admin.
+- **Permissão (o caminho feliz do controle de acesso)** — o usuário
+  comum não VÊ o botão de admin, e a rota de admin redireciona quem não
+  deveria estar lá. **Fronteira com o `security-agent` (2026-08-17):**
+  você testa se o controle de acesso *funciona como desenhado*; ele
+  testa se o controle *pode ser contornado* (chamar a API direto sem
+  passar pela UI, trocar o ID na URL, RLS que falha em silêncio). Se
+  você encontrar um caminho que contorna, **reporte como sinal pro
+  security** — o veredito de superfície de ataque é dele, não seu.
+- **Funcional de integração (herdado do `reviewer` em 2026-08-17)** —
+  formulário envia de verdade, WhatsApp abre com a mensagem certa,
+  fallback sem JavaScript carrega. Isso era item do checklist do
+  `reviewer-agent`, que auditava função sem ser dono dela.
 
 ## Regras
 - Todo achado precisa de **passo a passo pra reproduzir**. Bug que

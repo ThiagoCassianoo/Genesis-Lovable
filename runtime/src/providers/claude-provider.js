@@ -23,7 +23,7 @@ function getClient() {
 
 /**
  * @param {{systemPrompt: string, history: {role: "user"|"assistant", text: string}[], userMessage: string, tier?: "opus"|"sonnet"}} params
- * @returns {Promise<string>}
+ * @returns {Promise<{text: string, usage: {input: number, output: number}}>}
  */
 export async function sendToClaude({ systemPrompt, history, userMessage, tier = "sonnet" }) {
   const model = MODEL_BY_TIER[tier];
@@ -45,8 +45,22 @@ export async function sendToClaude({ systemPrompt, history, userMessage, tier = 
 
   // response.content é um array de blocos (texto, tool_use, etc.) —
   // concatena só os blocos de texto, não assume string direta.
-  return response.content
+  const text = response.content
     .filter((block) => block.type === "text")
     .map((block) => block.text)
     .join("");
+
+  // Resposta vazia é ERRO, não sucesso (auditoria 2026-08-17) — mesma
+  // razão dos outros providers: texto vazio no histórico quebra o
+  // turno seguinte com um erro sem relação aparente com a causa.
+  if (!text) {
+    throw new Error(`Claude devolveu resposta sem bloco de texto (stop_reason=${response.stop_reason ?? "?"}) — tratando como falha pra não corromper o histórico.`);
+  }
+
+  // usage vem sempre da API, não é estimativa — é o que a Anthropic
+  // de fato cobrou nesta chamada.
+  return {
+    text,
+    usage: { input: response.usage?.input_tokens ?? 0, output: response.usage?.output_tokens ?? 0 },
+  };
 }

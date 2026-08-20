@@ -37,10 +37,24 @@ Todo agente declara, no próprio arquivo:
    categoria própria (ALUCINAÇÃO TÉCNICA, `fiscal-agent.md` item 1b).
 4. **Condição de parada.** Duas tentativas iguais que falham = para e
    escala. Ação irreversível não tem retry automático.
-5. **`can_edit_files: false`** por padrão — só `implementation-agent`
-   (código em `src/`) e `docs-agent` (documentação, escopo restrito
-   abaixo) têm Write/Edit. Não é regra que o agente lembra: é permissão
-   que ele não tem.
+5. **`can_edit_files: false`** por padrão — três exceções, e só três:
+   - `implementation-agent` — código em `src/`.
+   - `docs-agent` — documentação, escopo restrito no item 6.
+   - `fiscal-agent` — **`Write` apenas para gravar
+     `.claude/logs/fiscal-<task_id>.json`**, o marcador de auditoria
+     que `.githooks/pre-commit` exige pra liberar commit.
+     *(Exceção regularizada em 2026-08-17: o `fiscal-agent.md` já
+     dizia "você tem Write só pra isso — exceção documentada em
+     agent-contracts.md", mas a exceção nunca esteve escrita aqui E o
+     `Write` não estava no frontmatter dele. Resultado: nenhum agente
+     conseguia produzir o marcador, e o gate de commit era
+     matematicamente inatingível. Diferente das outras duas, esta
+     exceção **não tem trava mecânica** — `guard-docs-agent-scope.sh`
+     só cobre o `docs-agent`. É contrato de texto; o risco está
+     registrado em `docs/decisoes.md`.)*
+
+   Nos dois primeiros casos não é regra que o agente lembra: é
+   permissão que ele não tem.
 6. **`docs-agent`: escrita permitida apenas em path matching `docs/*` e
    `.claude/logs/*`; tentativa de escrita fora disso = exit code 2 +
    log.** Imposto por `.claude/hooks/guard-docs-agent-scope.sh`, não por

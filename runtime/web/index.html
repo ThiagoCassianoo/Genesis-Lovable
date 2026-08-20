@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Missões Tech — Painel</title>
+<style>
+  /* Mobile-first (preferência declarada do diretor). Sem framework:
+     uma página que não pode quebrar por dependência externa. */
+  :root{
+    --bg:#0d1117; --painel:#161b22; --borda:#30363d; --txt:#e6edf3;
+    --fraco:#8b949e; --ok:#3fb950; --alerta:#d29922; --erro:#f85149;
+    --acao:#2f81f7; --regra:#3fb950; --ferr:#a371f7; --ia:#d29922;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding-bottom:5.5rem} /* espaço pra thumb zone */
+  header{padding:1rem;border-bottom:1px solid var(--borda);
+    display:flex;justify-content:space-between;align-items:center;gap:.75rem}
+  h1{font-size:1rem;margin:0;font-weight:600}
+  .pill{font-size:.7rem;padding:.2rem .5rem;border-radius:999px;
+    border:1px solid var(--borda);color:var(--fraco);white-space:nowrap}
+  main{padding:1rem;max-width:900px;margin:0 auto}
+  .card{background:var(--painel);border:1px solid var(--borda);
+    border-radius:10px;padding:.9rem;margin-bottom:.9rem}
+  .card h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--fraco);margin:0 0 .7rem}
+  select,textarea,button{font:inherit;border-radius:8px;
+    border:1px solid var(--borda);background:#0d1117;color:var(--txt);padding:.65rem}
+  select,textarea{width:100%}
+  textarea{resize:vertical;min-height:4.5rem}
+  button{background:var(--acao);border:none;color:#fff;font-weight:600;
+    cursor:pointer;min-height:46px;padding:.7rem 1.1rem} /* alvo tocável */
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.sec{background:transparent;border:1px solid var(--borda);color:var(--txt)}
+  .linha{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem}
+  .msg{padding:.7rem .85rem;border-radius:8px;margin-bottom:.6rem;
+    white-space:pre-wrap;word-break:break-word}
+  .msg.eu{background:#1f2937;margin-left:12%}
+  .msg.ag{background:#0d1117;border:1px solid var(--borda);margin-right:12%}
+  .meta{font-size:.7rem;color:var(--fraco);margin-top:.35rem}
+  .barra{display:flex;height:24px;border-radius:6px;overflow:hidden;margin:.5rem 0}
+  .barra div{display:flex;align-items:center;justify-content:center;
+    font-size:.68rem;font-weight:700;color:#04140a}
+  .ev{font-size:.8rem;padding:.35rem .5rem;border-left:2px solid var(--borda);
+    margin-bottom:.2rem;color:var(--fraco)}
+  .ev b{color:var(--txt);font-weight:600}
+  .ev.regra{border-color:var(--regra)} .ev.ferr{border-color:var(--ferr)}
+  .ev.ia{border-color:var(--ia)} .ev.alerta{border-color:var(--alerta);color:var(--alerta)}
+  .aviso{background:#1c1400;border:1px solid var(--alerta);color:var(--alerta);
+    padding:.6rem .8rem;border-radius:8px;font-size:.82rem;margin-bottom:.9rem}
+  .tabs{display:flex;gap:.4rem;margin-bottom:.9rem;position:sticky;top:0;
+    background:var(--bg);padding:.5rem 0;z-index:5}
+  .tabs button{flex:1;background:transparent;border:1px solid var(--borda);
+    color:var(--fraco);font-weight:500}
+  .tabs button[aria-selected="true"]{background:var(--painel);color:var(--txt);
+    border-color:var(--acao)}
+  .num{font-size:1.5rem;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem}
+  .grid div{background:#0d1117;border:1px solid var(--borda);
+    border-radius:8px;padding:.6rem;text-align:center}
+  .grid small{display:block;color:var(--fraco);font-size:.68rem;margin-top:.15rem}
+  @media(min-width:700px){ .msg.eu{margin-left:30%} .msg.ag{margin-right:30%} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Missões Tech</h1>
+  <span class="pill" id="status">carregando…</span>
+</header>
+
+<main>
+  <div id="avisoSim" class="aviso" hidden></div>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-aba="fluxo">Fluxo</button>
+    <button role="tab" aria-selected="false" data-aba="chat">Chat</button>
+    <button role="tab" aria-selected="false" data-aba="custos">Custos</button>
+  </div>
+
+  <!-- FLUXO -->
+  <section id="aba-fluxo">
+    <div class="card">
+      <h2>Rodar o fluxo</h2>
+      <select id="linha">
+        <option value="site">Site / landing page</option>
+        <option value="sistema">Sistema / SaaS</option>
+        <option value="marketing">Marketing</option>
+      </select>
+      <textarea id="objetivo" placeholder="O que o cliente precisa? Ex: landing para agendamento do salão da igreja"></textarea>
+      <div class="linha">
+        <button id="btnSimular">Simular (sem gastar API)</button>
+        <button id="btnReal" class="sec">Rodar de verdade</button>
+      </div>
+    </div>
+    <div class="card" id="cardRes" hidden>
+      <h2>Resultado</h2>
+      <div class="barra" id="barra"></div>
+      <div class="grid" id="numeros"></div>
+      <div id="eventos" style="margin-top:.8rem"></div>
+    </div>
+  </section>
+
+  <!-- CHAT -->
+  <section id="aba-chat" hidden>
+    <div class="card">
+      <h2>Conversar com um agente</h2>
+      <select id="agente"></select>
+      <div class="meta" id="descAgente"></div>
+    </div>
+    <div class="card">
+      <div id="conversa"></div>
+      <textarea id="entrada" placeholder="Escreva aqui…"></textarea>
+      <div class="linha"><button id="btnEnviar">Enviar</button></div>
+    </div>
+  </section>
+
+  <!-- CUSTOS -->
+  <section id="aba-custos" hidden>
+    <div class="card">
+      <h2>Decisões — regra vs IA</h2>
+      <div class="barra" id="barraCustos"></div>
+      <div class="grid" id="gridCustos"></div>
+    </div>
+    <div class="card">
+      <h2>Tokens por agente</h2>
+      <div id="tabelaUso"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (rota, opts) => {
+  const r = await fetch(rota, opts);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || `erro ${r.status}`);
+  return j;
+};
+
+// --- abas ---
+document.querySelectorAll('[data-aba]').forEach(b => b.onclick = () => {
+  document.querySelectorAll('[data-aba]').forEach(x => x.setAttribute('aria-selected', x === b));
+  ['fluxo','chat','custos'].forEach(a => $('#aba-'+a).hidden = (a !== b.dataset.aba));
+  if (b.dataset.aba === 'custos') carregarCustos();
+});
+
+// --- status ---
+let modoSimulacao = true;
+(async () => {
+  const s = await api('/api/status');
+  modoSimulacao = s.modoSimulacao;
+  const n = s.providers.filter(p => p.configurada).length;
+  $('#status').textContent = n ? `${n}/4 providers` : 'sem chave';
+  if (modoSimulacao) {
+    $('#avisoSim').hidden = false;
+    $('#avisoSim').textContent = 'Nenhuma chave de API no .env — só a simulação funciona. Rode: bash scripts/setup-keys.sh';
+    $('#btnReal').disabled = true;
+    $('#btnEnviar').disabled = true;
+  }
+})();
+
+// --- agentes ---
+(async () => {
+  const { agentes } = await api('/api/agentes');
+  $('#agente').innerHTML = agentes.map(a => `<option value="${a.nome}">${a.nome}</option>`).join('');
+  const mostrar = () => {
+    const a = agentes.find(x => x.nome === $('#agente').value);
+    $('#descAgente').textContent = a ? a.descricao.slice(0, 220) + '…' : '';
+  };
+  $('#agente').onchange = mostrar; mostrar();
+})();
+
+// --- fluxo ---
+function pintarBarra(el, regra, ferr, ia) {
+  const t = regra + ferr + ia || 1;
+  el.innerHTML = `
+    <div style="width:${regra/t*100}%;background:var(--regra)">${regra?'regra '+regra:''}</div>
+    <div style="width:${ferr/t*100}%;background:var(--ferr)">${ferr?'tool '+ferr:''}</div>
+    <div style="width:${ia/t*100}%;background:var(--ia)">${ia?'IA '+ia:''}</div>`;
+}
+
+async function rodarFluxo(simular) {
+  const btn = simular ? $('#btnSimular') : $('#btnReal');
+  const txt = btn.textContent; btn.disabled = true; btn.textContent = 'Rodando…';
+  try {
+    const brief = {
+      objetivo: $('#objetivo').value || 'landing page',
+      capturaLead: true, temFormulario: true, vaiParaDeploy: true,
+    };
+    const r = await api('/api/fluxo', {
+      method: 'POST', headers: {'content-type':'application/json'},
+      body: JSON.stringify({ linha: $('#linha').value, brief, simular }),
+    });
+    $('#cardRes').hidden = false;
+    pintarBarra($('#barra'), r.stats.decisoesRegra, r.stats.decisoesFerramenta, r.stats.decisoesIa);
+    $('#numeros').innerHTML = `
+      <div><span class="num">${r.stats.percentualSemIa}%</span><small>sem API</small></div>
+      <div><span class="num">${r.stats.decisoesIa}</span><small>chamadas de IA</small></div>
+      <div><span class="num">${r.resumo.feitos}</span><small>agentes</small></div>
+      <div><span class="num">${r.resumo.pulados}</span><small>pulados por regra</small></div>`;
+    const cls = { ferramenta:'ferr', 'ia-simulada':'ia', ia:'ia', skill:'regra',
+                  pulado:'regra', lacuna:'alerta', 'fora-do-formato':'alerta',
+                  'bloqueado-sem-ia':'alerta', fim:'regra' };
+    $('#eventos').innerHTML = r.eventos.map(e => {
+      const t = { ferramenta:`🔧 <b>${e.agente}</b> ← ${e.ferramenta}`,
+        'ia-simulada':`🤖 <b>${e.agente}</b> — chamaria a IA`,
+        ia:`🤖 <b>${e.agente}</b> via ${e.provider} (${e.tokens?.input||0} in / ${e.tokens?.output||0} out)`,
+        skill:`📋 <b>${e.agente}</b> — plano (sem IA)`,
+        pulado:`⏭️ <b>${e.agente}</b> — pulado por regra`,
+        lacuna:`⚠️ <b>${e.agente}</b> — faltam: ${(e.lacunas||[]).join(', ')}`,
+        'fora-do-formato':`⚠️ <b>${e.agente}</b> — fora do formato`,
+        'bloqueado-sem-ia':`🛑 <b>${e.agente}</b> — providers caíram; fila salva`,
+        fim:`🏁 ${e.motivo}` }[e.tipo] || e.tipo;
+      return `<div class="ev ${cls[e.tipo]||''}">${t}</div>`;
+    }).join('');
+  } catch (e) { alert('Erro: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = txt; }
+}
+$('#btnSimular').onclick = () => rodarFluxo(true);
+$('#btnReal').onclick = () => { if (confirm('Isso gasta API de verdade. Continuar?')) rodarFluxo(false); };
+
+// --- chat ---
+let historico = [];
+$('#btnEnviar').onclick = async () => {
+  const msg = $('#entrada').value.trim(); if (!msg) return;
+  $('#conversa').insertAdjacentHTML('beforeend', `<div class="msg eu">${msg}</div>`);
+  $('#entrada').value = ''; $('#btnEnviar').disabled = true;
+  try {
+    const r = await api('/api/chat', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ agente: $('#agente').value, mensagem: msg, historico }),
+    });
+    historico.push({role:'user', text:msg}, {role:'assistant', text:r.texto});
+    const corte = r.contextoCortado ? ` · ${r.contextoCortado} msg antigas fora do envio` : '';
+    $('#conversa').insertAdjacentHTML('beforeend',
+      `<div class="msg ag">${r.texto}<div class="meta">${r.provider}/${r.tier} · ${r.usage.input} in / ${r.usage.output} out${corte}</div></div>`);
+    window.scrollTo(0, document.body.scrollHeight);
+  } catch (e) { alert('Erro: ' + e.message); }
+  finally { $('#btnEnviar').disabled = false; }
+};
+
+// --- custos ---
+async function carregarCustos() {
+  const { uso, decisoes } = await api('/api/custos');
+  pintarBarra($('#barraCustos'), decisoes.porRegra, decisoes.porFerramenta, decisoes.porIa);
+  $('#gridCustos').innerHTML = `
+    <div><span class="num">${decisoes.percentualSemIa}%</span><small>sem API</small></div>
+    <div><span class="num">${decisoes.total}</span><small>decisões</small></div>
+    <div><span class="num">${uso.totalInput+uso.totalOutput}</span><small>tokens</small></div>
+    <div><span class="num">${uso.totalFailed||0}</span><small>falhas</small></div>`;
+  const linhas = Object.entries(uso.byAgent||{})
+    .sort((a,b)=>(b[1].input+b[1].output)-(a[1].input+a[1].output));
+  $('#tabelaUso').innerHTML = linhas.length
+    ? linhas.map(([ag,d]) => `<div class="ev">${ag} — <b>${d.input+d.output}</b> tokens (${d.calls} chamadas)</div>`).join('')
+    : '<div class="ev">Nenhuma chamada registrada ainda.</div>';
+}
+</script>
+</body>
+</html>

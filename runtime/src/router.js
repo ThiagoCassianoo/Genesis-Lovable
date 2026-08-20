@@ -1,8 +1,18 @@
 import { sendToClaude } from "./providers/claude-provider.js";
 import { sendToGemini } from "./providers/gemini-provider.js";
+import { sendToGroq } from "./providers/groq-provider.js";
+import { sendToCerebras } from "./providers/cerebras-provider.js";
 
+// Ordem default pensada pra "nunca parar de trabalhar" com custo zero:
+// Claude (condição normal) -> Groq (free mais robusto: 30 RPM, RPD alto,
+// sem cartão) -> Cerebras (free, teto de tokens/dia generoso, bom 2º
+// backup) -> Gemini (free mas RPD mais apertado em alguns modelos,
+// fica por último). Critério e limites reais em docs/custos.md — se um
+// provider mudar de limite, atualiza lá primeiro, a ordem aqui depois.
 const PROVIDERS = {
   claude: { send: sendToClaude, tierField: "model" }, // opus | sonnet
+  groq: { send: sendToGroq, tierField: "modelFallback" }, // capaz | economico
+  cerebras: { send: sendToCerebras, tierField: "modelFallback" }, // capaz | economico
   gemini: { send: sendToGemini, tierField: "modelFallback" }, // capaz | economico
 };
 
@@ -43,6 +53,19 @@ function recordFailure(provider) {
 function recordSuccess(provider) {
   breakerState[provider] = { failures: [], openUntil: 0 };
 }
+
+/**
+ * Limpa o estado do circuit breaker. Existe só pra teste isolar um
+ * caso do outro (adicionado 2026-08-17) — o breaker é o único estado
+ * mutável de módulo do runtime, e sem isso um teste contamina o
+ * seguinte. Nunca chamado em produção.
+ */
+export function _resetBreakerParaTeste() {
+  for (const k of Object.keys(breakerState)) delete breakerState[k];
+}
+
+/** Exposto pra teste inspecionar decisão de retry sem rede. */
+export const _isTransienteParaTeste = (err) => isTransient(err);
 
 /** Timeout duro por chamada — um provider lento não trava o chat pra sempre. */
 function withTimeout(promise, ms, label) {
@@ -106,16 +129,25 @@ async function withRetry(fn) {
  * backend-master...) continua crítico mesmo rodando no provider de
  * fallback.
  *
- * @param {{agent: {systemPrompt: string, model: string, modelFallback: string}, history: Array, userMessage: string, order?: string[]}} params
- * @returns {Promise<{text: string, provider: string, tier: string, attempts: {provider: string, error: string}[]}>}
+ * `providers` existe SÓ para teste (adicionado 2026-08-17): permite
+ * injetar providers falsos e exercitar failover, retry e circuit
+ * breaker sem gastar uma chave de API. Antes disso o router — a parte
+ * com mais lógica condicional e o único estado mutável do repo — não
+ * era coberto por nenhum teste, e foi exatamente por isso que dois
+ * bugs graves (modelo morto da Cerebras, resposta vazia virando
+ * sucesso) passaram por 42 checagens verdes. Em produção nunca é
+ * passado: o default é o mapa real.
+ *
+ * @param {{agent: {systemPrompt: string, model: string, modelFallback: string}, history: Array, userMessage: string, order?: string[], providers?: object}} params
+ * @returns {Promise<{text: string, provider: string, tier: string, usage: {input: number, output: number}, attempts: {provider: string, error: string}[]}>}
  */
-export async function sendMessage({ agent, history, userMessage, order = ["claude", "gemini"] }) {
+export async function sendMessage({ agent, history, userMessage, order = ["claude", "groq", "cerebras", "gemini"], providers = PROVIDERS }) {
   const attempts = [];
 
   for (const providerName of order) {
-    const providerDef = PROVIDERS[providerName];
+    const providerDef = providers[providerName];
     if (!providerDef) {
-      attempts.push({ provider: providerName, error: "provider desconhecido (use: claude, gemini)" });
+      attempts.push({ provider: providerName, error: `provider desconhecido (use: ${Object.keys(providers).join(", ")})` });
       continue;
     }
 
@@ -127,7 +159,7 @@ export async function sendMessage({ agent, history, userMessage, order = ["claud
 
     const tier = agent[providerDef.tierField];
     try {
-      const text = await withRetry(() =>
+      const { text, usage } = await withRetry(() =>
         withTimeout(
           providerDef.send({ systemPrompt: agent.systemPrompt, history, userMessage, tier }),
           TIMEOUT_MS,
@@ -135,7 +167,7 @@ export async function sendMessage({ agent, history, userMessage, order = ["claud
         )
       );
       recordSuccess(providerName);
-      return { text, provider: providerName, tier, attempts };
+      return { text, provider: providerName, tier, usage: usage || { input: 0, output: 0 }, attempts };
     } catch (err) {
       recordFailure(providerName);
       attempts.push({ provider: providerName, error: err.message });

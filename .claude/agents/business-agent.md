@@ -91,8 +91,20 @@ a sua recomendação padrão caso ninguém responda. Siga com a parte da
 análise que não depende dela.
 
 ## Formato de saída (sempre este, sem variação)
+
+**Corrigido em 2026-08-17 (auditoria de arquitetura).** O formato
+anterior tinha 4 campos e **nenhum era o que o `creative-agent`
+declara precisar** — ele exige ICP e modelo de conversão, que este
+agente é obrigado a produzir internamente (seções `## ICP` e
+`## Modelo de conversão do nicho`) mas não emitia. A cadeia
+`business → creative` rodava por PREMISSA em vez de dado, já no 2º
+elo. As duas linhas novas não são trabalho extra: é o que você já
+fazia, só faltava sair pela porta.
+
 ```
 Diagnóstico: [2-3 frases]
+ICP: [1 linha — segmento, porte, quem decide a compra]
+Modelo de conversão: [venda | lead | inscrição | doação | agendamento]
 Insights:
 1. [insight acionável]
 2. [insight acionável]
@@ -102,3 +114,25 @@ Riscos:
 2. [risco]
 Recomendação prioritária: [1 frase]
 ```
+
+`runtime/src/orchestrator/context-engine.js` extrai esses campos por
+parser (sem IA) e entrega ao próximo agente. Omitir um campo faz a
+extração reportar `conforme: false` e o `fiscal-agent` ver o desvio —
+não é mais falha silenciosa.
+
+## Fronteira de diagnóstico com o `marketing-master` (2026-08-17)
+Os dois "diagnosticam". A correção de 2026-08-16 separou a
+**recomendação** e deixou o diagnóstico sobreposto. A fronteira agora
+é por **objeto**, não por profundidade (profundidade não é auditável):
+
+- **Você diagnostica a OFERTA** — o que vendemos, pra quem, por que o
+  valor não está claro, se preço/produto/posicionamento está errado.
+- **Ele diagnostica o CANAL** — de onde vêm os clientes hoje, o que já
+  foi tentado na aquisição, por que o funil vaza.
+
+Quando o `marketing-master` conclui "o gargalo não é marketing, é
+oferta/produto/preço" — o que o contrato dele manda dizer — isso **não
+é diagnóstico dele, é encaminhamento pra você**. Ele reporta o sinal;
+quem investiga a causa é você. O inverso vale igual: se a oferta está
+boa e o problema é ninguém descobrir, encaminhe pra ele em vez de
+opinar sobre canal.

@@ -9,7 +9,7 @@ e eleva a régua de qualidade com o tempo.
 ## Como registrar um padrão novo
 Depois que o `reviewer-agent` aprovar uma etapa com nota alta, o
 diretor decide se o efeito vira padrão catalogado. Formato sugerido
-por arquivo (`docs/patterns/nome-do-efeito.md`):
+por arquivo (`docs/conhecimento/patterns/nome-do-efeito.md`):
 
 ```
 # Nome do efeito

@@ -1,18 +1,39 @@
 # Roadmap de evolução do time de agentes
 
+> ⚠️ **DOCUMENTO HISTÓRICO CONGELADO EM 2026-08-15.**
+> A auditoria de 2026-08-17 encontrou aqui: 3 contagens de agente
+> erradas (dizia 12/13/14 — hoje são 16), contagem de comandos errada
+> (dizia 7 — hoje são 10), 7 links apontando pra arquivos movidos pra
+> `_quarentena/` na mesma rodada que este doc narra, e estado de stack
+> revogado ("aguarda aprovação do diretor" — Supabase foi aprovada em
+> 2026-08-16).
+>
+> Causa raiz: este arquivo e `docs/decisoes.md` faziam a mesma coisa —
+> registro cronológico do que foi construído e por quê. `decisoes.md`
+> foi mantido, este fossilizou. Duplicação garante drift (é a mesma
+> lição já registrada em `decisoes.md` sobre `COMMANDS.md` e
+> `docs/patterns/`).
+>
+> **Fonte de verdade do estado atual: `docs/decisoes.md`.** Este
+> arquivo vale como narrativa de COMO o time chegou até aqui (Etapas 1
+> a 3), não como estado. Os links foram corrigidos pra não mandar
+> ninguém pra arquivo inexistente; as contagens foram deixadas como
+> estavam, porque reescrevê-las apagaria o registro histórico — leia
+> as datas.
+
 Registro vivo de onde o time está e o que falta — pra qualquer sessão
 (esta ou o operacional) saber o estado real sem depender de histórico
 de chat.
 
 ## Etapa 1 — Intake & Confirmação (concluída)
-Formalizada dentro do `CLAUDE.md` (Workflow, item 1) e `docs/workflow.md`.
+Formalizada dentro do `CLAUDE.md` (Workflow, item 1) e `docs/_quarentena/workflow.md`.
 Não é agente novo — é o orquestrador (Claude Code + CLAUDE.md) fazendo
 3 coisas antes de delegar: perguntar, reafirmar entendimento, montar
 tabela de delegação. Zero custo de contexto extra (não é chamada de
 subagente).
 
 ## Etapa 1b — Arquitetura e orquestração (concluída)
-- `docs/arquitetura-agentes.md` — decisão Subagents vs Agent Teams,
+- `docs/_quarentena/arquitetura-agentes.md` — decisão Subagents vs Agent Teams,
   hierarquia sob demanda, regra de roteamento de output grande.
 - `.claude/skills/swarm-planner/` — plano com dependência explícita.
 - `.claude/skills/parallel-task/` — execução em ondas, só tarefa
@@ -28,7 +49,7 @@ ancoragem). Mestre do Conselho = orquestrador, não é agente (subagente
 não acorda subagente).
 Trava de custo: só em decisão cara de desfazer, direção estratégica,
 ou quando o diretor pedir. Registrada no `CLAUDE.md` e no
-`docs/workflow.md` (etapa 1b).
+`docs/_quarentena/workflow.md` (etapa 1b).
 
 **Primeiro uso previsto:** a decisão de stack da Etapa 2 (backend) é
 exatamente o tipo de decisão que o Conselho existe pra pressionar.
@@ -36,7 +57,7 @@ exatamente o tipo de decisão que o Conselho existe pra pressionar.
 ## Etapa 1d — Auditoria e correção estrutural (concluída)
 Auditoria com evidência encontrou e corrigiu:
 - Numeração de workflow divergente entre `CLAUDE.md` e
-  `docs/workflow.md` → `docs/workflow.md` virou fonte única; o
+  `docs/_quarentena/workflow.md` → `docs/_quarentena/workflow.md` virou fonte única; o
   `CLAUDE.md` não numera mais etapa.
 - Comandos documentados mas inexistentes → implementados em
   `.claude/commands/` (7); `COMMANDS.md` removido (duplicação).
@@ -45,7 +66,7 @@ Auditoria com evidência encontrou e corrigiu:
 - Sem trava mecânica → `.claude/hooks/guard-red-lines.sh` +
   `.claude/settings.json` bloqueiam install/rm/push/commit/reset.
 - Sem MCP registrado → `.mcp.json` com Playwright.
-- Sem teste do próprio time → `docs/testes-agentes.md`.
+- Sem teste do próprio time → `docs/_quarentena/testes-agentes.md`.
 - Sem tratamento de falha na execução → regra escrita no
   `CLAUDE.md` e na skill `parallel-task`.
 - Nomenclatura órfã ("Discovery") e critério de contratação
@@ -101,7 +122,7 @@ criado, nenhuma migration rodada.
 
 ## Etapa 2d — Fechamento de brechas (concluída)
 Teoria de agentes aplicada; gaps fechados:
-- **Utility-based** → `docs/prioridades.md`. O orquestrador e os
+- **Utility-based** → `docs/_quarentena/prioridades.md`. O orquestrador e os
   mestres resolvem conflito sozinhos; só empate real sobe, e sobe como
   pergunta com recomendação, nunca travando a entrega.
 - **Model-based reflex completo** → leitura obrigatória de
@@ -117,10 +138,10 @@ Teoria de agentes aplicada; gaps fechados:
 - **Loop de feedback** → `docs/conhecimento/` com regra de fechamento
   obrigatória: entrega não fecha sem catalogar o que funcionou e
   transformar o que quebrou em regra nova.
-- **Grafo e arestas** → `docs/grafo-agentes.md`. Sem comunicação
+- **Grafo e arestas** → `docs/_quarentena/grafo-agentes.md`. Sem comunicação
   agente↔agente: tudo pelo orquestrador, cada um recebe só o recorte
   do escopo dele.
-- **Guardrails** → `docs/guardrails.md`, as 5 camadas do NeMo
+- **Guardrails** → `docs/_quarentena/guardrails.md`, as 5 camadas do NeMo
   implementadas com mecanismo nativo do Claude Code. NeMo em si
   rejeitado: é runtime Python, exigiria proxy na frente do Claude Code.
 
@@ -133,7 +154,7 @@ Teoria de agentes aplicada; gaps fechados:
   evidência, fora de contrato, promessa vs entrega e ciclo de
   fechamento — com evidência citável, nunca impressão.
 - 8 docs consolidados foram pra `docs/_quarentena/` em vez de apagados,
-  cumprindo a política de descarte. `docs/patterns/` fundido em
+  cumprindo a política de descarte. `docs/conhecimento/patterns/` fundido em
   `docs/conhecimento/patterns/`.
 - 7 referências quebradas pelo refactor foram detectadas por varredura
   e corrigidas — caminho **e** numeração de etapa, que também mudou.
