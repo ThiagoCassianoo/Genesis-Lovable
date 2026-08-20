@@ -9,6 +9,7 @@ import { sendMessage } from "../src/router.js";
 import { logUsage, summarizeUsage } from "../src/usage-logger.js";
 import { trimHistory, DEFAULT_MAX_HISTORY_TURNS } from "../src/history.js";
 import { rodar } from "../src/orchestrator/worker.js";
+import { LINHAS } from "../src/orchestrator/etapas.js";
 import { resumirDecisoes } from "../src/orchestrator/decision-record.js";
 import { FILA_DIR, resumo as resumoFila } from "../src/orchestrator/fila.js";
 import { carregarChat, registrarTroca } from "../src/chatlog.js";
@@ -86,6 +87,17 @@ const servidor = createServer(async (req, res) => {
     // ---------- API ----------
     if (url.pathname === "/api/agentes" && req.method === "GET") {
       return json(res, 200, { agentes: listarAgentes() });
+    }
+
+    // Passos esperados de uma linha — pra desenhar a barra de progresso
+    // ANTES do fluxo rodar (senão o usuário só sabe que existe passo 4
+    // quando o passo 4 chegar). Mesma fonte que o worker.js usa de
+    // verdade (etapas.js), nada reimplementado.
+    if (url.pathname === "/api/etapas" && req.method === "GET") {
+      const linha = url.searchParams.get("linha") || "site";
+      const passos = LINHAS[linha];
+      if (!passos) return json(res, 400, { erro: `linha "${linha}" não existe` });
+      return json(res, 200, { passos });
     }
 
     if (url.pathname === "/api/status" && req.method === "GET") {

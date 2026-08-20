@@ -1,4 +1,4 @@
-# Retomada — 2026-08-20 18:10
+# Retomada — 2026-08-20 19:30 (fechada com 8% de uso restante — só decisão registrada, nada executado)
 
 ## Tarefa em curso
 task_id: `fabrica-agentes-v1-runtime-fix`
@@ -168,6 +168,68 @@ disse que precisa ver de início.
    diretor, zero custo, ainda não feita.
 6. Se/quando quiser: hook de filtro de output verboso — adiado por
    orçamento, é o item mais caro que sobrou da lista de economia.
+
+## Feito nesta 5ª rodada (stepper de progresso + fechamento por limite, 2026-08-20 ~18-19h)
+- **Stepper de progresso na aba Fluxo** — em vez de "iniciando…" vago,
+  mostra a lista completa de passos esperados (`GET /api/etapas?linha=X`,
+  novo, reaproveita `LINHAS` de `etapas.js`, nada duplicado) ANTES do
+  fluxo rodar, marcando cada agente como pendente/ativo(pulsando)/
+  feito(✓)/pulado conforme os eventos SSE chegam, com contador "X/N".
+  Testado: `/api/etapas?linha=site` devolve os 12 passos certos,
+  `?linha=inexistente` devolve 400 como esperado.
+- Avaliado e **recusado** conscientemente: paralelizar `business-agent
+  → creative-agent → technical-agent` pra "agilizar de verdade" — são
+  sequenciais de propósito (creative usa o posicionamento que business
+  acabou de definir; é o mecanismo de reaproveitar contexto que já
+  existe). Mexer nisso na fase de teste final é risco alto pra ganho
+  incerto — não fiz.
+
+## Decisão grande desta rodada, NÃO executada — fica pro diretor decidir com calma
+O diretor pediu (nesta ordem, mesma conversa): (1) ligar o painel a
+`docs/clientes/**/brief.md` (trabalho real) em vez de só
+`runtime/logs/fila-*.json` (o pipeline de teste do `runtime/`); (2) dar
+ferramenta de verdade (ler/escrever arquivo, rodar comando) pros
+agentes do `runtime/`, tipo Cursor; (3) um "botão único" que dispara a
+fábrica inteira até um `repo2` pronto, sem precisar de mim (Claude
+Code) no meio.
+
+**Respondido, não construído, por causa do orçamento (sessão chegou a
+8% de uso):**
+- (2) foi **recusado** — está registrado desde o início deste arquivo
+  (seção "O que NÃO fazer") que expandir `runtime/` pra ação real sem
+  reconstruir a disciplina de aprovação dos hooks do Claude Code é
+  perigoso: as travas (`guard-red-lines.sh`) só existem DENTRO de uma
+  sessão do Claude Code. Um agente com ferramenta de verdade chamado
+  por botão via Groq não tem trava nenhuma.
+- (3) é **fisicamente impossível ficar grátis** — código real sempre
+  passa pelo Claude Code (única forma seria a Anthropic Agent SDK/CLI
+  em modo não-interativo, chamado de um botão do painel, mas isso
+  continua gastando o MESMO limite semanal/5h — não existe atalho
+  gratuito pra trabalho real). O que um botão pode economizar é
+  atrito/ida-e-volta (esta sessão gastou muito nisso — 4 rodadas de
+  fiscal pra 1 commit pequeno), não o custo do trabalho em si.
+- (1) confirmado pelo diretor como intenção real: repo 1 (este) vira
+  suporte fixo, `docs/arquitetura-repo1-repo2.md` deixa de ser
+  PREMISSA — cada projeto de cliente (ex.: o teste fictício "sistema
+  pra produtores de café, gestão de lavoura, SaaS completo" que ele
+  pediu) nasceria como um `repo2` novo, não dentro deste repositório.
+
+**O que fica pra próxima sessão decidir, com o diretor descansado e
+com token cheio:** desenhar como funciona esse botão/gatilho de forma
+honesta — provavelmente: painel web dispara a Anthropic Agent SDK em
+modo não-interativo (CLI headless) num processo servidor, com os
+MESMOS hooks/guard-red-lines aplicados (precisa confirmar se o SDK
+headless herda `.claude/hooks/` do jeito que a sessão interativa
+herda — não verificado ainda), e o painel vira só a camada de
+observação/gatilho, não o executor. Isso é projeto novo de verdade,
+não encaixa em sessão com pouco token.
+
+**Teste fictício do café ainda NÃO rodou** — diretor propôs escopo
+enxuto (navigator + business + technical + swarm-planner +
+implementation fazendo só o esqueleto, não o SaaS completo) como
+alternativa à versão cara (16 agentes, código completo). Não
+confirmou qual dos dois antes da sessão fechar por orçamento — próxima
+sessão pergunta antes de rodar.
 
 ## Bloqueado, aguardando decisão (novo item desta rodada)
 - **Parte 5 candidata: busca local** (ideia original, ainda não feita)

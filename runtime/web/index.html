@@ -104,9 +104,25 @@
   .agora{display:flex;align-items:center;gap:.5rem;background:var(--acao-glow);
     border:1px solid var(--acao);border-radius:8px;padding:.5rem .7rem;
     margin-bottom:.7rem;font-size:.82rem}
+  .agora .contador{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--fraco)}
   .agora .ponto{width:8px;height:8px;border-radius:50%;background:var(--acao);flex:none;
     animation:pulsar 1.1s ease-in-out infinite}
   @keyframes pulsar{0%,100%{opacity:1;box-shadow:0 0 0 0 var(--acao-glow)}50%{opacity:.6;box-shadow:0 0 0 5px transparent}}
+
+  /* --- Stepper de progresso (substitui o spinner vago) --- */
+  .stepper{display:flex;flex-direction:column;gap:0;margin-bottom:.8rem}
+  .step{display:flex;align-items:center;gap:.6rem;padding:.4rem 0;font-size:.8rem;color:var(--fraco)}
+  .step .marca{width:20px;height:20px;border-radius:50%;flex:none;display:flex;
+    align-items:center;justify-content:center;border:2px solid var(--borda);
+    transition:border-color .2s,background .2s}
+  .step .marca svg{width:12px;height:12px}
+  .step.feito{color:var(--txt)}
+  .step.feito .marca{border-color:var(--ok);background:var(--ok);color:#04140a}
+  .step.pulado .marca{border-color:var(--fraco)}
+  .step.ativo{color:var(--txt);font-weight:600}
+  .step.ativo .marca{border-color:var(--acao);box-shadow:0 0 0 4px var(--acao-glow);
+    animation:pulsar 1.1s ease-in-out infinite}
+  .step .etiqueta{font-size:.66rem;color:var(--fraco);margin-left:auto}
   dialog#dlgDetalhe{background:var(--painel-alto);color:var(--txt);border:1px solid var(--borda);
     border-radius:14px;padding:1.1rem;width:min(560px,92vw);box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
   dialog#dlgDetalhe::backdrop{background:rgba(5,6,12,.7);backdrop-filter:blur(3px)}
@@ -168,6 +184,7 @@
     </div>
     <div class="card" id="cardRes" hidden>
       <h2>Resultado</h2>
+      <div id="stepper" class="stepper"></div>
       <div id="agoraTrabalhando" class="agora" hidden></div>
       <div class="barra" id="barra"></div>
       <div class="grid" id="numeros"></div>
@@ -289,9 +306,38 @@ function textoEvento(e) {
     fim:`🏁 ${e.motivo}` }[e.tipo] || e.tipo;
 }
 
+// Ícones do stepper — check (feito), traço (pulado), vazio (pendente/ativo).
+const ICONE_STEP = {
+  feito: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 5 5 9-9"/></svg>',
+  pulado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 12h12"/></svg>',
+};
+
+function montarStepper(passos) {
+  $('#stepper').innerHTML = passos.map((p, i) =>
+    `<div class="step" data-agente="${p.agente}">
+      <span class="marca"></span>${p.agente}
+      <span class="etiqueta">etapa ${p.etapa}${p.condicao ? ' · condicional' : ''}</span>
+    </div>`
+  ).join('');
+}
+
+function atualizarStepper(agente, estado) {
+  const el = document.querySelector(`.step[data-agente="${agente}"]`);
+  if (!el) return; // agente fora da lista prevista (ex.: swarm-planner sem match) — não quebra
+  document.querySelectorAll('.step.ativo').forEach(x => x.classList.remove('ativo'));
+  el.classList.remove('ativo');
+  el.classList.add(estado);
+  el.querySelector('.marca').innerHTML = ICONE_STEP[estado] || '';
+}
+function contadorStepper() {
+  const total = document.querySelectorAll('.step').length;
+  const prontos = document.querySelectorAll('.step.feito, .step.pulado').length;
+  return total ? `<span class="contador">${prontos}/${total}</span>` : '';
+}
+
 // EventSource nativo (HTML5) — cada agente aparece no painel no
 // INSTANTE em que ele começa a trabalhar, não só no resultado final.
-function rodarFluxo(simular) {
+async function rodarFluxo(simular) {
   const btn = simular ? $('#btnSimular') : $('#btnReal');
   const outroBtn = simular ? $('#btnReal') : $('#btnSimular');
   const txt = btn.textContent; btn.disabled = true; outroBtn.disabled = true; btn.textContent = 'Rodando…';
@@ -301,15 +347,30 @@ function rodarFluxo(simular) {
   $('#agoraTrabalhando').hidden = false;
   $('#agoraTrabalhando').innerHTML = '<span class="ponto"></span> iniciando…';
 
+  const linha = $('#linha').value;
+  try {
+    const { passos } = await api('/api/etapas?linha=' + encodeURIComponent(linha));
+    montarStepper(passos);
+  } catch { $('#stepper').innerHTML = ''; }
+
   const params = new URLSearchParams({
-    linha: $('#linha').value, cliente: $('#cliente').value,
+    linha, cliente: $('#cliente').value,
     objetivo: $('#objetivo').value || 'landing page', simular: String(simular),
   });
   const es = new EventSource('/api/fluxo/stream?' + params.toString());
 
   es.addEventListener('passo', (ev) => {
     const e = JSON.parse(ev.data);
-    if (e.agente) $('#agoraTrabalhando').innerHTML = `<span class="ponto"></span> <b>${e.agente}</b> trabalhando agora…`;
+    if (e.agente) {
+      const marcandoFeito = e.tipo === 'ia' || e.tipo === 'ia-simulada' || e.tipo === 'skill' || e.tipo === 'ferramenta';
+      if (e.tipo === 'pulado') atualizarStepper(e.agente, 'pulado');
+      else if (marcandoFeito) {
+        const el = document.querySelector(`.step[data-agente="${e.agente}"]`);
+        if (el && !el.classList.contains('feito')) el.classList.add('ativo'); // ferramenta roda antes da IA no mesmo agente
+        if (e.tipo === 'ia' || e.tipo === 'ia-simulada' || e.tipo === 'skill') atualizarStepper(e.agente, 'feito');
+      }
+      $('#agoraTrabalhando').innerHTML = `<span class="ponto"></span> <b>${e.agente}</b> trabalhando agora… ${contadorStepper()}`;
+    }
     $('#eventos').insertAdjacentHTML('afterbegin', `<div class="ev ${CLS_EVENTO[e.tipo]||''}">${textoEvento(e)}</div>`);
   });
 
