@@ -10,6 +10,8 @@ import { logUsage, summarizeUsage } from "../src/usage-logger.js";
 import { trimHistory, DEFAULT_MAX_HISTORY_TURNS } from "../src/history.js";
 import { rodar } from "../src/orchestrator/worker.js";
 import { resumirDecisoes } from "../src/orchestrator/decision-record.js";
+import { FILA_DIR, resumo as resumoFila } from "../src/orchestrator/fila.js";
+import { carregarChat, registrarTroca } from "../src/chatlog.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..", "..");
@@ -52,6 +54,14 @@ function lerCorpo(req) {
   });
 }
 
+/** filaId nasce do nome do cliente — memória por cliente: reabrir o
+ * mesmo cliente+linha retoma a mesma fila em vez de criar do zero. */
+function slugCliente(cliente) {
+  if (!cliente) return "sem-nome";
+  return cliente.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "cliente";
+}
+
 /** Lista os agentes lendo o frontmatter — mesma fonte do runtime. */
 function listarAgentes() {
   const dir = join(REPO_ROOT, ".claude", "agents");
@@ -92,7 +102,7 @@ const servidor = createServer(async (req, res) => {
     }
 
     if (url.pathname === "/api/chat" && req.method === "POST") {
-      const { agente: nomeAgente, mensagem, historico = [] } = await lerCorpo(req);
+      const { agente: nomeAgente, mensagem, historico = [], filaId = "" } = await lerCorpo(req);
       if (!nomeAgente || !mensagem) return json(res, 400, { erro: "faltou `agente` ou `mensagem`" });
 
       const agente = loadAgent(nomeAgente, { agentsDir: join(REPO_ROOT, ".claude", "agents") });
@@ -110,20 +120,93 @@ const servidor = createServer(async (req, res) => {
           inputTokens: 0, outputTokens: 0, timestampMs: Date.now(), ok: false, error: a.error,
         });
       }
+      // Memória por cliente: só grava em disco se a conversa está
+      // amarrada a um projeto (filaId) — chat avulso continua efêmero,
+      // do jeito que já era, sem surpresa.
+      if (filaId) {
+        registrarTroca(filaId, { agente: agente.name, pergunta: mensagem, resposta: r.text, timestampMs: Date.now() });
+      }
       return json(res, 200, {
         texto: r.text, provider: r.provider, tier: r.tier, usage: r.usage,
         tentativasFalhas: r.attempts, contextoCortado: dropped,
       });
     }
 
+    if (url.pathname === "/api/chat/historico" && req.method === "GET") {
+      const filaId = url.searchParams.get("filaId") || "";
+      if (!filaId) return json(res, 400, { erro: "faltou `filaId`" });
+      try {
+        return json(res, 200, { historico: carregarChat(filaId) });
+      } catch (e) {
+        return json(res, 500, { erro: e.message });
+      }
+    }
+
     if (url.pathname === "/api/fluxo" && req.method === "POST") {
-      const { linha = "site", brief = {}, simular = true, filaId = `web-${linha}` } = await lerCorpo(req);
+      const { linha = "site", brief = {}, simular = true, cliente = "", filaId } = await lerCorpo(req);
+      const idFinal = filaId || `${slugCliente(cliente)}-${linha}`;
       const eventos = [];
       const r = await rodar({
-        filaId, linha, brief: { ...brief, linha }, simular,
+        filaId: idFinal, linha, brief: { ...brief, linha, cliente }, simular,
         onPasso: (e) => eventos.push(e),
       });
-      return json(res, 200, { eventos, resumo: r.resumo, stats: r.stats, bloqueados: r.bloqueados });
+      return json(res, 200, { filaId: idFinal, eventos, resumo: r.resumo, stats: r.stats, bloqueados: r.bloqueados });
+    }
+
+    // SSE — evento por evento, em tempo real, enquanto o fluxo roda
+    // (a versão POST acima só devolve tudo no final). GET porque
+    // EventSource nativo do browser só abre conexão GET.
+    if (url.pathname === "/api/fluxo/stream" && req.method === "GET") {
+      const linha = url.searchParams.get("linha") || "site";
+      const cliente = url.searchParams.get("cliente") || "";
+      const objetivo = url.searchParams.get("objetivo") || "";
+      const simular = url.searchParams.get("simular") !== "false";
+      const idFinal = `${slugCliente(cliente)}-${linha}`;
+
+      res.writeHead(200, {
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const enviar = (tipo, dados) => res.write(`event: ${tipo}\ndata: ${JSON.stringify(dados)}\n\n`);
+
+      try {
+        const brief = { objetivo: objetivo || "landing page", capturaLead: true, temFormulario: true, vaiParaDeploy: true, linha, cliente };
+        const r = await rodar({
+          filaId: idFinal, linha, brief, simular,
+          onPasso: (e) => enviar("passo", e),
+        });
+        enviar("fim", { filaId: idFinal, resumo: r.resumo, stats: r.stats, bloqueados: r.bloqueados });
+      } catch (e) {
+        enviar("erro", { erro: e.message });
+      }
+      return res.end();
+    }
+
+    if (url.pathname === "/api/projetos" && req.method === "GET") {
+      if (!existsSync(FILA_DIR)) return json(res, 200, { projetos: [] });
+      const projetos = readdirSync(FILA_DIR)
+        .filter((f) => f.startsWith("fila-") && f.endsWith(".json"))
+        .map((f) => {
+          try {
+            const fila = JSON.parse(readFileSync(join(FILA_DIR, f), "utf-8"));
+            const r = resumoFila(fila);
+            let status = "a-fazer";
+            if (r.total > 0) {
+              status = r.bloqueados > 0 ? "bloqueado"
+                : (r.feitos + r.pulados >= r.total ? "concluido" : "em-andamento");
+            }
+            return {
+              id: fila.id, linha: fila.linha, criadaEm: fila.criadaEm,
+              cliente: fila.brief?.cliente || null, objetivo: fila.brief?.objetivo || null,
+              status, resumo: r, itens: fila.itens || [],
+            };
+          } catch (e) {
+            return { id: f.replace(/^fila-|\.json$/g, ""), status: "erro", erro: e.message };
+          }
+        })
+        .sort((a, b) => (b.criadaEm || "").localeCompare(a.criadaEm || ""));
+      return json(res, 200, { projetos });
     }
 
     // ---------- estático ----------

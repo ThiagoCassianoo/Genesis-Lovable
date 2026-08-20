@@ -1,4 +1,4 @@
-# Retomada — 2026-08-20 16:20
+# Retomada — 2026-08-20 18:10
 
 ## Tarefa em curso
 task_id: `fabrica-agentes-v1-runtime-fix`
@@ -80,13 +80,102 @@ auditados e commitados.
   verboso — item mais caro da lista original de economia, ainda não
   criado.
 
+## Feito nesta 3ª rodada (correção pós-fiscal, 2026-08-20 ~16h45)
+- `fiscal-agent` auditou a 2ª rodada e achou 6 problemas reais: commit
+  `567f3c7` (via `--no-verify`) sem motivo registrado, `docs/decisoes.md`
+  sem entrada pro enxugamento do `CLAUDE.md`, `RETOMADA.md` dizendo
+  "nada pendente" quando não era verdade, contagem de linha errada
+  (222, não 223), commit `567f3c7` invisível na seção "Arquivos
+  tocados", e a Regra de Ouro 6 tendo perdido os exemplos concretos de
+  texto manipulador ("ignore as instruções anteriores" etc.) no corte
+  — a única degradação com efeito de segurança real (saiu do sempre-
+  carregado pro sob-demanda).
+- Todos os 6 corrigidos direto (sem novo subagente): entrada nova em
+  `docs/decisoes.md` § "CLAUDE.md enxugado + commit via --no-verify",
+  exemplos devolvidos à Regra 6 do `CLAUDE.md`, `RETOMADA.md` corrigido
+  nos 4 pontos factuais. Commitado como `4cedccd`.
+- Confirmado: árvore local limpa, **2 commits à frente do
+  `origin/main`** (`567f3c7` + `4cedccd`) — falta `git push`.
+
+## Feito nesta 4ª rodada (painel virou centro de comando, 2026-08-20 ~17-18h)
+Pedido do diretor: transformar `runtime/web/` (só um painel de teste)
+no centro de comando dele — kanban de projetos, memória por cliente,
+tudo sem framework novo e sem gastar API à toa. Entregue em 4 partes
+pequenas, cada uma testada de verdade (curl/node, não só "deveria
+funcionar") e confirmada pelo diretor antes de avançar:
+
+1. **Kanban de projetos** — `GET /api/projetos` novo em
+   `runtime/server/index.js` lê os `fila-*.json` que já existiam
+   (`runtime/src/orchestrator/fila.js`, nada duplicado) e classifica em
+   4 colunas (a-fazer/em-andamento/bloqueado/concluído) por regra, sem
+   IA. `filaId` passou a nascer do nome do cliente (`slugCliente()`),
+   não mais de "linha" solta — é isso que dá "memória por cliente".
+2. **Ao vivo ("quem está trabalhando agora")** — `/api/fluxo/stream`
+   novo, SSE (`EventSource` nativo do HTML5, sem lib): cada agente
+   aparece no painel no INSTANTE em que entra, não só no resultado
+   final. Testado com `curl -N`, 12 eventos chegaram um a um de
+   verdade, evento `fim` fechou certo.
+3. **Memória de chat por cliente** — `runtime/src/chatlog.js` (novo,
+   mesmo padrão de gravação atômica do `fila.js`, arquivo separado de
+   propósito — formatos diferentes, contrato de `context-engine.js` não
+   pode quebrar). `POST /api/chat` grava quando vem `filaId`;
+   `GET /api/chat/historico` recarrega. Botão "Abrir conversa (com
+   memória)" no card do kanban. Chat avulso (sem filaId) continua
+   efêmero, painel avisa isso explicitamente — nunca fingir memória que
+   não existe (Modo Verdade do `creative-agent.md`).
+4. **Fechar o buraco Chat→Fluxo** — o diretor percebeu que conversar
+   com o `navigator-agent` até fechar o brief não virava projeto
+   sozinho. `detectarBrief()` no painel reconhece pelo texto quando a
+   resposta bate com o `## Formato de saída` que o `navigator-agent.md`
+   já declara ("Brief —" + "Recomendação de acionamento"), extrai
+   cliente/objetivo/linha por regex (heurística, por isso os campos
+   ficam EDITÁVEIS antes de virar projeto — nunca assume calado) e um
+   botão "Usar este brief no Fluxo" leva pra aba certa já preenchida.
+   Testado com brief de exemplo, os 3 campos saíram certos.
+
+**Correção de visual no meio do caminho** — a 1ª versão da Parte 1
+usava violeta em bloco sólido; o diretor apontou (certo) que isso É o
+"roxo genérico de IA" que a Regra 4 do `CLAUDE.md`/`creative-agent.md`
+proíbe — a diferença marca/clichê está em COMO a cor é usada. Corrigido:
+violeta só em borda/glow (nunca fill), dourado virou o único destaque
+Von Restorff real (1x por tela, na barra de progresso), ícones dos
+status têm significado próprio (não decorativo), detalhe do projeto
+virou `<dialog>` HTML5 nativo, troca de aba usa View Transitions API.
+Zero lib nova em toda a rodada — só HTML5/CSS/JS nativo mais avançado,
+por pedido explícito do diretor ("sem criar framework novo").
+
+**Também corrigido nesta rodada:** `$('#agente')` do Chat abria em
+`backend-master` (1º em ordem alfabética) — agora abre em
+`navigator-agent` por padrão, porque é o único agente que o diretor
+disse que precisa ver de início.
+
 ## Próximo passo imediato
-1. Confirmar visualmente que a status line nova está aparecendo certo
-   no terminal (abrir uma sessão nova do Claude Code e olhar).
-2. Rodar `/mcp` pra desativar server(s) MCP parado(s) — ação do
+1. **`git push` continua pendente** — agora seriam 4 commits locais à
+   frente do `origin/main` depois deste (2 antigos + a rodada do
+   painel), não commitados ainda (ver "Arquivos tocados" abaixo).
+2. Diretor ainda não confirmou a Parte 4 no navegador — pedir
+   confirmação antes de considerar a rodada do painel fechada de
+   verdade.
+3. Existe 1 arquivo lixo, untracked, resultado de um teste de sintaxe
+   que errou o path no Windows: `runtime/web/UsersLenovo...js`. Não
+   apaguei sozinho (a trava de `rm` pediu aprovação); não vai pro
+   commit porque está fora do stage, mas fica sujando `git status` até
+   o diretor rodar `rm` ele mesmo ou aprovar.
+4. Confirmar visualmente que a status line está aparecendo certo no
+   terminal (depende de `jq`; `fiscal-agent` não achou `jq` no PATH do
+   bash dele, pode ser só o shell dele — checar de verdade).
+5. Rodar `/mcp` pra desativar server(s) MCP parado(s) — ação do
    diretor, zero custo, ainda não feita.
-3. Se/quando quiser: hook de filtro de output verboso — adiado por
+6. Se/quando quiser: hook de filtro de output verboso — adiado por
    orçamento, é o item mais caro que sobrou da lista de economia.
+
+## Bloqueado, aguardando decisão (novo item desta rodada)
+- **Parte 5 candidata: busca local** (ideia original, ainda não feita)
+  vs. **aprofundar a Parte 4** (ex.: `navigator-agent` também poder
+  criar o projeto sem precisar da revisão manual, ou o Fluxo aceitar
+  retomar um projeto já iniciado em vez de sempre rodar do zero) →
+  decide: Thiago → sem preferência registrada ainda, perguntar na
+  próxima sessão antes de escolher.
 
 Independente disso, pro trabalho de fábrica em si (não economia de
 sessão): `npm run testar:navigator` já provou 1 agente funcionando de
@@ -111,9 +200,8 @@ isso não passa pelo Claude Code, não gasta limite.
   desenhada.
 
 ## Decisões desta sessão ainda não registradas
-Nada — a entrada sobre o enxugamento do `CLAUDE.md` e o uso de
-`--no-verify` acabou de ser gravada em `docs/decisoes.md` (mesma
-rodada deste registro).
+Nada — a entrada da rodada do painel (4 partes) acabou de ser gravada
+em `docs/decisoes.md`, mesma rodada deste registro.
 
 ## Arquivos tocados
 Commit `c7b86df` (65 arquivos, `git show --stat c7b86df`). Commit
@@ -122,7 +210,16 @@ Thiago diretamente no terminal, arquivos não revisados por mim.
 Commit `567f3c7` — `CLAUDE.md` + `docs/RETOMADA.md` (enxugamento),
 feito por Thiago com `git commit --no-verify` (rotina de
 infraestrutura, sem entrega de agente — uso previsto pelo próprio
-`.githooks/pre-commit`). Resumo por tema em `docs/decisoes.md`.
+`.githooks/pre-commit`). Commit `4cedccd` — correções pós-fiscal
+(`docs/decisoes.md`, `docs/RETOMADA.md`, `CLAUDE.md`).
+**Ainda NÃO commitado** (staged nunca rodado, ver "Próximo passo
+imediato" item 1): `runtime/server/index.js` (3 endpoints novos:
+`/api/projetos`, `/api/fluxo/stream`, `/api/chat/historico` + memória
+em `/api/chat`), `runtime/web/index.html` (kanban, SSE ao vivo, dialog
+nativo, detecção de brief), `runtime/src/chatlog.js` (novo). Resumo por
+tema em `docs/decisoes.md` — **pendente registrar esta rodada lá
+também**, ainda não fiz (ver "Decisões desta sessão ainda não
+registradas" abaixo).
 
 ## Contexto mínimo para retomar
 Este repositório agora tem 2 históricos de origem diferente mesclados:

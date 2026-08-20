@@ -8,10 +8,21 @@
   /* Mobile-first (preferência declarada do diretor). Sem framework:
      uma página que não pode quebrar por dependência externa. */
   :root{
-    --bg:#0d1117; --painel:#161b22; --borda:#30363d; --txt:#e6edf3;
-    --fraco:#8b949e; --ok:#3fb950; --alerta:#d29922; --erro:#f85149;
-    --acao:#2f81f7; --regra:#3fb950; --ferr:#a371f7; --ia:#d29922;
+    /* Paleta Missões Tech (creative-agent.md), corrigida após achado real:
+       violeta em BLOCO SÓLIDO é o "roxo genérico de IA" que a Regra 4
+       proíbe — a diferença marca/clichê está em COMO a cor é usada, não
+       na cor em si. Regra aplicada aqui: violeta some do preenchimento,
+       vira só glow/borda (12% opacidade) — nunca fill. Dourado é o único
+       elemento com Von Restorff de verdade: aparece 1x por tela, no que
+       importa mais (progresso, ação primária) — não em toda borda. */
+    --bg:#0a0c14; --painel:#12141f; --painel-alto:#171a29; --borda:#242840;
+    --txt:#e8e9f3; --fraco:#7d81a3;
+    --ok:#3fb950; --alerta:#d29922; --erro:#f85149;
+    --acao:#8b7bf5; --acao-glow:rgba(139,123,245,.16);
+    --destaque:#e8a33d; --destaque-glow:rgba(232,163,61,.18);
+    --regra:#3fb950; --ferr:#a371f7; --ia:#d29922;
   }
+  @view-transition{navigation:auto}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
     font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -58,6 +69,48 @@
     border-color:var(--acao)}
   .num{font-size:1.5rem;font-weight:700}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem}
+
+  /* --- Kanban de projetos --- */
+  .kanban{display:grid;grid-template-columns:1fr;gap:.9rem}
+  @media(min-width:820px){ .kanban{grid-template-columns:repeat(4,1fr)} }
+  .coluna{background:var(--bg);border-radius:12px;padding:.15rem}
+  .coluna h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--fraco);margin:0 0 .6rem;display:flex;align-items:center;gap:.4rem;
+    font-variant-numeric:tabular-nums}
+  .coluna h3 svg{flex:none;width:15px;height:15px}
+  .proj{background:var(--painel);border:1px solid var(--borda);border-radius:10px;
+    padding:.8rem;margin-bottom:.6rem;cursor:pointer;
+    transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+    animation:entrar .28s ease backwards}
+  .proj:hover{border-color:var(--acao);box-shadow:0 0 0 1px var(--acao-glow),0 6px 20px -8px var(--acao-glow);
+    transform:translateY(-1px)}
+  .proj .cliente{font-weight:600;font-size:.9rem;letter-spacing:-.01em}
+  .proj .obj{color:var(--fraco);font-size:.76rem;margin-top:.25rem;line-height:1.4;
+    overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
+  .proj .rodape{display:flex;justify-content:space-between;align-items:center;
+    margin-top:.6rem;font-size:.7rem;color:var(--fraco);font-variant-numeric:tabular-nums}
+  .proj .progresso{flex:1;height:3px;background:var(--borda);border-radius:99px;
+    margin-right:.6rem;overflow:hidden}
+  .proj .progresso i{display:block;height:100%;background:var(--destaque);
+    box-shadow:0 0 8px var(--destaque-glow);transition:width .4s ease}
+  .vazio-coluna{color:var(--fraco);font-size:.76rem;padding:.5rem;border:1px dashed var(--borda);
+    border-radius:10px;text-align:center}
+  .detalhe-item{display:flex;justify-content:space-between;align-items:center;padding:.45rem 0;
+    border-bottom:1px solid var(--borda);font-size:.8rem}
+  .detalhe-item:last-child{border-bottom:none}
+  .detalhe-item b{font-weight:600;font-size:.68rem;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--fraco)}
+  @keyframes entrar{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .agora{display:flex;align-items:center;gap:.5rem;background:var(--acao-glow);
+    border:1px solid var(--acao);border-radius:8px;padding:.5rem .7rem;
+    margin-bottom:.7rem;font-size:.82rem}
+  .agora .ponto{width:8px;height:8px;border-radius:50%;background:var(--acao);flex:none;
+    animation:pulsar 1.1s ease-in-out infinite}
+  @keyframes pulsar{0%,100%{opacity:1;box-shadow:0 0 0 0 var(--acao-glow)}50%{opacity:.6;box-shadow:0 0 0 5px transparent}}
+  dialog#dlgDetalhe{background:var(--painel-alto);color:var(--txt);border:1px solid var(--borda);
+    border-radius:14px;padding:1.1rem;width:min(560px,92vw);box-shadow:0 24px 60px -20px rgba(0,0,0,.6)}
+  dialog#dlgDetalhe::backdrop{background:rgba(5,6,12,.7);backdrop-filter:blur(3px)}
+  dialog#dlgDetalhe h2{margin:0 0 .3rem;font-size:1rem}
   .grid div{background:#0d1117;border:1px solid var(--borda);
     border-radius:8px;padding:.6rem;text-align:center}
   .grid small{display:block;color:var(--fraco);font-size:.68rem;margin-top:.15rem}
@@ -74,16 +127,35 @@
   <div id="avisoSim" class="aviso" hidden></div>
 
   <div class="tabs" role="tablist">
-    <button role="tab" aria-selected="true" data-aba="fluxo">Fluxo</button>
+    <button role="tab" aria-selected="true" data-aba="projetos">Projetos</button>
+    <button role="tab" aria-selected="false" data-aba="fluxo">Fluxo</button>
     <button role="tab" aria-selected="false" data-aba="chat">Chat</button>
     <button role="tab" aria-selected="false" data-aba="custos">Custos</button>
   </div>
 
+  <!-- PROJETOS (centro de controle) -->
+  <section id="aba-projetos">
+    <div class="card">
+      <h2>Kanban de clientes/projetos</h2>
+      <div id="kanban" class="kanban"></div>
+    </div>
+    <dialog id="dlgDetalhe">
+      <h2 id="detalheTitulo">Detalhe</h2>
+      <div id="detalheCorpo"></div>
+      <div class="linha" style="margin-top:.9rem">
+        <button class="sec" id="btnFecharDetalhe">Fechar</button>
+        <button class="sec" id="btnAbrirConversa">Abrir conversa (com memória)</button>
+        <button id="btnContinuar">Continuar este projeto no Fluxo</button>
+      </div>
+    </dialog>
+  </section>
+
   <!-- FLUXO -->
-  <section id="aba-fluxo">
+  <section id="aba-fluxo" hidden>
     <div class="card">
       <h2>Rodar o fluxo</h2>
-      <select id="linha">
+      <input id="cliente" placeholder="Nome do cliente (ex: Igreja Vida Nova) — é isso que dá memória por cliente">
+      <select id="linha" style="margin-top:.6rem">
         <option value="site">Site / landing page</option>
         <option value="sistema">Sistema / SaaS</option>
         <option value="marketing">Marketing</option>
@@ -96,6 +168,7 @@
     </div>
     <div class="card" id="cardRes" hidden>
       <h2>Resultado</h2>
+      <div id="agoraTrabalhando" class="agora" hidden></div>
       <div class="barra" id="barra"></div>
       <div class="grid" id="numeros"></div>
       <div id="eventos" style="margin-top:.8rem"></div>
@@ -106,8 +179,21 @@
   <section id="aba-chat" hidden>
     <div class="card">
       <h2>Conversar com um agente</h2>
-      <select id="agente"></select>
+      <div class="meta" id="memoriaAtiva">Conversa avulsa — sem memória entre sessões (abra um projeto na aba Projetos pra ter memória por cliente)</div>
+      <select id="agente" style="margin-top:.5rem"></select>
       <div class="meta" id="descAgente"></div>
+    </div>
+    <div class="card" id="cardBrief" hidden>
+      <h2>Brief detectado</h2>
+      <div class="meta" style="margin-bottom:.5rem">O navigator-agent parece ter fechado o brief. Confira/ajuste antes de levar pro Fluxo — nada aqui é automático sem sua revisão.</div>
+      <input id="briefCliente" placeholder="Nome do cliente">
+      <select id="briefLinha" style="margin-top:.5rem">
+        <option value="site">Site / landing page</option>
+        <option value="sistema">Sistema / SaaS</option>
+        <option value="marketing">Marketing</option>
+      </select>
+      <textarea id="briefObjetivo" style="margin-top:.5rem" placeholder="Objetivo do projeto"></textarea>
+      <div class="linha"><button id="btnUsarBrief">Usar este brief no Fluxo</button></div>
     </div>
     <div class="card">
       <div id="conversa"></div>
@@ -139,11 +225,17 @@ const api = async (rota, opts) => {
   return j;
 };
 
-// --- abas ---
-document.querySelectorAll('[data-aba]').forEach(b => b.onclick = () => {
+// --- abas (View Transitions API nativa — troca com fade/slide sem
+// nenhuma lib de animação; navegador sem suporte cai pro corte seco) ---
+function trocarAba(b) {
   document.querySelectorAll('[data-aba]').forEach(x => x.setAttribute('aria-selected', x === b));
-  ['fluxo','chat','custos'].forEach(a => $('#aba-'+a).hidden = (a !== b.dataset.aba));
+  ['projetos','fluxo','chat','custos'].forEach(a => $('#aba-'+a).hidden = (a !== b.dataset.aba));
   if (b.dataset.aba === 'custos') carregarCustos();
+  if (b.dataset.aba === 'projetos') carregarProjetos();
+}
+document.querySelectorAll('[data-aba]').forEach(b => b.onclick = () => {
+  if (document.startViewTransition) document.startViewTransition(() => trocarAba(b));
+  else trocarAba(b);
 });
 
 // --- status ---
@@ -165,6 +257,7 @@ let modoSimulacao = true;
 (async () => {
   const { agentes } = await api('/api/agentes');
   $('#agente').innerHTML = agentes.map(a => `<option value="${a.nome}">${a.nome}</option>`).join('');
+  if (agentes.some(a => a.nome === 'navigator-agent')) $('#agente').value = 'navigator-agent';
   const mostrar = () => {
     const a = agentes.find(x => x.nome === $('#agente').value);
     $('#descAgente').textContent = a ? a.descricao.slice(0, 220) + '…' : '';
@@ -181,48 +274,96 @@ function pintarBarra(el, regra, ferr, ia) {
     <div style="width:${ia/t*100}%;background:var(--ia)">${ia?'IA '+ia:''}</div>`;
 }
 
-async function rodarFluxo(simular) {
+const CLS_EVENTO = { ferramenta:'ferr', 'ia-simulada':'ia', ia:'ia', skill:'regra',
+  pulado:'regra', lacuna:'alerta', 'fora-do-formato':'alerta',
+  'bloqueado-sem-ia':'alerta', fim:'regra' };
+function textoEvento(e) {
+  return { ferramenta:`🔧 <b>${e.agente}</b> ← ${e.ferramenta}`,
+    'ia-simulada':`🤖 <b>${e.agente}</b> — chamaria a IA`,
+    ia:`🤖 <b>${e.agente}</b> via ${e.provider} (${e.tokens?.input||0} in / ${e.tokens?.output||0} out)`,
+    skill:`📋 <b>${e.agente}</b> — plano (sem IA)`,
+    pulado:`⏭️ <b>${e.agente}</b> — pulado por regra`,
+    lacuna:`⚠️ <b>${e.agente}</b> — faltam: ${(e.lacunas||[]).join(', ')}`,
+    'fora-do-formato':`⚠️ <b>${e.agente}</b> — fora do formato`,
+    'bloqueado-sem-ia':`🛑 <b>${e.agente}</b> — providers caíram; fila salva`,
+    fim:`🏁 ${e.motivo}` }[e.tipo] || e.tipo;
+}
+
+// EventSource nativo (HTML5) — cada agente aparece no painel no
+// INSTANTE em que ele começa a trabalhar, não só no resultado final.
+function rodarFluxo(simular) {
   const btn = simular ? $('#btnSimular') : $('#btnReal');
-  const txt = btn.textContent; btn.disabled = true; btn.textContent = 'Rodando…';
-  try {
-    const brief = {
-      objetivo: $('#objetivo').value || 'landing page',
-      capturaLead: true, temFormulario: true, vaiParaDeploy: true,
-    };
-    const r = await api('/api/fluxo', {
-      method: 'POST', headers: {'content-type':'application/json'},
-      body: JSON.stringify({ linha: $('#linha').value, brief, simular }),
-    });
-    $('#cardRes').hidden = false;
+  const outroBtn = simular ? $('#btnReal') : $('#btnSimular');
+  const txt = btn.textContent; btn.disabled = true; outroBtn.disabled = true; btn.textContent = 'Rodando…';
+  $('#cardRes').hidden = false;
+  $('#eventos').innerHTML = '';
+  $('#numeros').innerHTML = '';
+  $('#agoraTrabalhando').hidden = false;
+  $('#agoraTrabalhando').innerHTML = '<span class="ponto"></span> iniciando…';
+
+  const params = new URLSearchParams({
+    linha: $('#linha').value, cliente: $('#cliente').value,
+    objetivo: $('#objetivo').value || 'landing page', simular: String(simular),
+  });
+  const es = new EventSource('/api/fluxo/stream?' + params.toString());
+
+  es.addEventListener('passo', (ev) => {
+    const e = JSON.parse(ev.data);
+    if (e.agente) $('#agoraTrabalhando').innerHTML = `<span class="ponto"></span> <b>${e.agente}</b> trabalhando agora…`;
+    $('#eventos').insertAdjacentHTML('afterbegin', `<div class="ev ${CLS_EVENTO[e.tipo]||''}">${textoEvento(e)}</div>`);
+  });
+
+  es.addEventListener('fim', (ev) => {
+    const r = JSON.parse(ev.data);
+    $('#agoraTrabalhando').hidden = true;
     pintarBarra($('#barra'), r.stats.decisoesRegra, r.stats.decisoesFerramenta, r.stats.decisoesIa);
     $('#numeros').innerHTML = `
       <div><span class="num">${r.stats.percentualSemIa}%</span><small>sem API</small></div>
       <div><span class="num">${r.stats.decisoesIa}</span><small>chamadas de IA</small></div>
       <div><span class="num">${r.resumo.feitos}</span><small>agentes</small></div>
       <div><span class="num">${r.resumo.pulados}</span><small>pulados por regra</small></div>`;
-    const cls = { ferramenta:'ferr', 'ia-simulada':'ia', ia:'ia', skill:'regra',
-                  pulado:'regra', lacuna:'alerta', 'fora-do-formato':'alerta',
-                  'bloqueado-sem-ia':'alerta', fim:'regra' };
-    $('#eventos').innerHTML = r.eventos.map(e => {
-      const t = { ferramenta:`🔧 <b>${e.agente}</b> ← ${e.ferramenta}`,
-        'ia-simulada':`🤖 <b>${e.agente}</b> — chamaria a IA`,
-        ia:`🤖 <b>${e.agente}</b> via ${e.provider} (${e.tokens?.input||0} in / ${e.tokens?.output||0} out)`,
-        skill:`📋 <b>${e.agente}</b> — plano (sem IA)`,
-        pulado:`⏭️ <b>${e.agente}</b> — pulado por regra`,
-        lacuna:`⚠️ <b>${e.agente}</b> — faltam: ${(e.lacunas||[]).join(', ')}`,
-        'fora-do-formato':`⚠️ <b>${e.agente}</b> — fora do formato`,
-        'bloqueado-sem-ia':`🛑 <b>${e.agente}</b> — providers caíram; fila salva`,
-        fim:`🏁 ${e.motivo}` }[e.tipo] || e.tipo;
-      return `<div class="ev ${cls[e.tipo]||''}">${t}</div>`;
-    }).join('');
-  } catch (e) { alert('Erro: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = txt; }
+    es.close();
+    btn.disabled = false; outroBtn.disabled = false; btn.textContent = txt;
+  });
+
+  es.addEventListener('erro', (ev) => {
+    const e = JSON.parse(ev.data);
+    $('#agoraTrabalhando').hidden = true;
+    alert('Erro: ' + e.erro);
+    es.close();
+    btn.disabled = false; outroBtn.disabled = false; btn.textContent = txt;
+  });
+
+  es.onerror = () => {
+    // conexão caiu antes do evento "fim" — não fica travado esperando pra sempre
+    if (es.readyState === EventSource.CLOSED) {
+      $('#agoraTrabalhando').hidden = true;
+      btn.disabled = false; outroBtn.disabled = false; btn.textContent = txt;
+    }
+  };
 }
 $('#btnSimular').onclick = () => rodarFluxo(true);
 $('#btnReal').onclick = () => { if (confirm('Isso gasta API de verdade. Continuar?')) rodarFluxo(false); };
 
-// --- chat ---
+// --- chat (com memória por cliente, quando há filaId ativo) ---
 let historico = [];
+let filaIdAtivo = null; // null = conversa avulsa, não persiste
+
+function renderizarConversaSalva(lista) {
+  $('#conversa').innerHTML = lista.map(m =>
+    `<div class="msg ${m.role === 'user' ? 'eu' : 'ag'}">${m.text}</div>`
+  ).join('');
+  historico = lista.map(m => ({ role: m.role, text: m.text }));
+  window.scrollTo(0, document.body.scrollHeight);
+}
+
+async function abrirConversaDoCliente(filaId, nomeCliente) {
+  filaIdAtivo = filaId;
+  $('#memoriaAtiva').textContent = `Memória ativa: ${nomeCliente} — as trocas daqui ficam salvas e voltam da próxima vez que abrir este cliente`;
+  const { historico: salvo } = await api('/api/chat/historico?filaId=' + encodeURIComponent(filaId));
+  renderizarConversaSalva(salvo);
+}
+
 $('#btnEnviar').onclick = async () => {
   const msg = $('#entrada').value.trim(); if (!msg) return;
   $('#conversa').insertAdjacentHTML('beforeend', `<div class="msg eu">${msg}</div>`);
@@ -230,15 +371,41 @@ $('#btnEnviar').onclick = async () => {
   try {
     const r = await api('/api/chat', {
       method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ agente: $('#agente').value, mensagem: msg, historico }),
+      body: JSON.stringify({ agente: $('#agente').value, mensagem: msg, historico, filaId: filaIdAtivo || undefined }),
     });
     historico.push({role:'user', text:msg}, {role:'assistant', text:r.texto});
     const corte = r.contextoCortado ? ` · ${r.contextoCortado} msg antigas fora do envio` : '';
     $('#conversa').insertAdjacentHTML('beforeend',
       `<div class="msg ag">${r.texto}<div class="meta">${r.provider}/${r.tier} · ${r.usage.input} in / ${r.usage.output} out${corte}</div></div>`);
     window.scrollTo(0, document.body.scrollHeight);
+    detectarBrief(r.texto);
   } catch (e) { alert('Erro: ' + e.message); }
   finally { $('#btnEnviar').disabled = false; }
+};
+
+// Heurística de texto, não IA nova — só olha se a resposta do
+// navigator-agent bate com o "## Formato de saída" que o próprio
+// contrato dele declara (navigator-agent.md). Extração é aproximada
+// de propósito: os 3 campos ficam editáveis, o diretor confere antes
+// de qualquer coisa virar projeto — nunca assume calado.
+function detectarBrief(texto) {
+  if (!/Brief\s*[—-]/.test(texto) || !/Recomenda[cç][aã]o de acionamento/i.test(texto)) return;
+  const nomeM = texto.match(/Brief\s*[—-]\s*([^\n]+)/);
+  const objM = texto.match(/Objetivo principal:\s*([^\n]+)/i);
+  let linha = 'site';
+  if (/backend-master/.test(texto)) linha = 'sistema';
+  else if (/marketing-master/.test(texto) && !/creative-agent/.test(texto)) linha = 'marketing';
+  $('#briefCliente').value = (nomeM ? nomeM[1] : '').replace(/\[a preencher\]/i, '').trim();
+  $('#briefObjetivo').value = objM ? objM[1].trim() : '';
+  $('#briefLinha').value = linha;
+  $('#cardBrief').hidden = false;
+  $('#cardBrief').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+$('#btnUsarBrief').onclick = () => {
+  document.querySelector('[data-aba="fluxo"]').click();
+  $('#cliente').value = $('#briefCliente').value;
+  $('#linha').value = $('#briefLinha').value;
+  $('#objetivo').value = $('#briefObjetivo').value;
 };
 
 // --- custos ---
@@ -256,6 +423,83 @@ async function carregarCustos() {
     ? linhas.map(([ag,d]) => `<div class="ev">${ag} — <b>${d.input+d.output}</b> tokens (${d.calls} chamadas)</div>`).join('')
     : '<div class="ev">Nenhuma chamada registrada ainda.</div>';
 }
+
+// --- projetos (kanban) ---
+// Ícones com significado real (não decorativo — regra do creative-agent):
+// cada um É o status, não ilustra ele. Stroke 2px fixo, 15px, mesma
+// família visual em todo o painel (regra "espessura de traço igual").
+const ICONE = {
+  'a-fazer': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>',
+  'em-andamento': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
+  bloqueado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>',
+  concluido: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>',
+};
+const COLUNAS = [
+  { chave: 'a-fazer', titulo: 'A fazer', cor: 'var(--fraco)' },
+  { chave: 'em-andamento', titulo: 'Em andamento', cor: 'var(--acao)' },
+  { chave: 'bloqueado', titulo: 'Bloqueado', cor: 'var(--erro)' },
+  { chave: 'concluido', titulo: 'Concluído', cor: 'var(--ok)' },
+];
+let projetosCache = [];
+
+function cartaoProjeto(p, i) {
+  const nome = p.cliente || p.id;
+  const pct = p.resumo && p.resumo.total ? Math.round((p.resumo.feitos / p.resumo.total) * 100) : 0;
+  return `<div class="proj" data-id="${p.id}" style="animation-delay:${i*35}ms">
+    <div class="cliente">${nome}</div>
+    <div class="obj">${p.objetivo || '(sem objetivo registrado)'} · ${p.linha || ''}</div>
+    <div class="rodape">
+      <div class="progresso"><i style="width:${pct}%"></i></div>
+      <span>${p.resumo ? p.resumo.feitos : 0}/${p.resumo ? p.resumo.total : 0}</span>
+    </div>
+  </div>`;
+}
+
+function pintarKanban(projetos) {
+  $('#kanban').innerHTML = COLUNAS.map(c => {
+    const itens = projetos.filter(p => p.status === c.chave);
+    return `<div class="coluna">
+      <h3 style="color:${c.cor}">${ICONE[c.chave]}<span style="color:var(--fraco)">${c.titulo} (${itens.length})</span></h3>
+      ${itens.length ? itens.map((p,i) => cartaoProjeto(p,i)).join('') : '<div class="vazio-coluna">Nenhum projeto aqui.</div>'}
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.proj').forEach(el => el.onclick = () => abrirDetalhe(el.dataset.id));
+}
+
+async function carregarProjetos() {
+  const { projetos } = await api('/api/projetos');
+  projetosCache = projetos;
+  if (document.startViewTransition) document.startViewTransition(() => pintarKanban(projetos));
+  else pintarKanban(projetos);
+}
+
+function abrirDetalhe(id) {
+  const p = projetosCache.find(x => x.id === id);
+  if (!p) return;
+  $('#detalheTitulo').textContent = p.cliente || p.id;
+  const itens = (p.itens || []).map(i =>
+    `<div class="detalhe-item"><span>${i.agente} <span class="meta">(etapa ${i.etapa})</span></span><b>${i.status}</b></div>`
+  ).join('') || '<div class="detalhe-item">Nenhuma etapa registrada ainda.</div>';
+  $('#detalheCorpo').innerHTML = `
+    <div class="meta">Linha: ${p.linha} · Criado em: ${p.criadaEm ? new Date(p.criadaEm).toLocaleString('pt-BR') : '—'}</div>
+    <div class="meta" style="margin-bottom:.6rem">${p.objetivo || '(sem objetivo registrado)'}</div>
+    ${itens}`;
+  $('#btnContinuar').onclick = () => {
+    $('#dlgDetalhe').close();
+    document.querySelector('[data-aba="fluxo"]').click();
+    $('#cliente').value = p.cliente || '';
+    $('#linha').value = p.linha || 'site';
+  };
+  $('#btnAbrirConversa').onclick = () => {
+    $('#dlgDetalhe').close();
+    document.querySelector('[data-aba="chat"]').click();
+    abrirConversaDoCliente(p.id, p.cliente || p.id);
+  };
+  $('#dlgDetalhe').showModal(); // <dialog> nativo: backdrop, foco preso, Esc fecha — de graça, sem JS de modal
+}
+$('#btnFecharDetalhe').onclick = () => { $('#dlgDetalhe').close(); };
+
+carregarProjetos();
 </script>
 </body>
 </html>
