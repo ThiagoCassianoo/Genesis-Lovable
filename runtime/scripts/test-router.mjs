@@ -207,6 +207,43 @@ const provLento = (ms) => ({
 }
 
 // ---------------------------------------------------------------
+// 8b. BREAKER POR MODELO — bug real corrigido 2026-08-26 (importado do
+// "model lockout" do OmniRoute): antes, a chave do breaker era só o
+// nome do provider. Se glm/capaz tomasse rate limit, o circuito abria
+// pro "glm" inteiro e derrubava glm/economico junto, mesmo esse nunca
+// tendo sido chamado. Agora a chave é `${provider}:${tier}`.
+// ---------------------------------------------------------------
+{
+  _resetBreakerParaTeste();
+  const flaky = {
+    tierField: "model",
+    send: async ({ tier }) => {
+      if (tier === "sonnet") throw new Error("500 sonnet fora do ar");
+      return { text: `ok via ${tier}`, usage: { input: 1, output: 1 } };
+    },
+  };
+  // abre o circuito só pro tier "sonnet" do provider "flaky"
+  await sendMessage({ agent: { ...agente, model: "sonnet" }, history: [], userMessage: "oi", order: ["flaky"], providers: { flaky } }).catch(() => {});
+  const rOpus = await sendMessage({ agent: { ...agente, model: "opus" }, history: [], userMessage: "oi", order: ["flaky"], providers: { flaky } });
+  check(
+    rOpus.provider === "flaky" && rOpus.attempts.length === 0,
+    "breaker por modelo: falha no tier 'sonnet' NÃO abre o circuito pro tier 'opus' do MESMO provider"
+  );
+  // "sonnet" é o único item da ordem e o circuito dele está aberto —
+  // sendMessage lança (não sobra provider nenhum pra responder).
+  let erroSonnetDeNovo = null;
+  try {
+    await sendMessage({ agent: { ...agente, model: "sonnet" }, history: [], userMessage: "oi", order: ["flaky"], providers: { flaky } });
+  } catch (e) {
+    erroSonnetDeNovo = e;
+  }
+  check(
+    /circuito aberto/.test(erroSonnetDeNovo?.message ?? ""),
+    "breaker por modelo: o tier 'sonnet' que realmente falhou continua com o circuito aberto"
+  );
+}
+
+// ---------------------------------------------------------------
 // 9. Tier vem do agente, nunca hardcoded — um agente crítico continua
 //    crítico no fallback (regra de docs/model-assignment.md)
 // ---------------------------------------------------------------

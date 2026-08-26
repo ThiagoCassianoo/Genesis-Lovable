@@ -147,6 +147,7 @@
     <button role="tab" aria-selected="false" data-aba="fluxo">Fluxo</button>
     <button role="tab" aria-selected="false" data-aba="chat">Chat</button>
     <button role="tab" aria-selected="false" data-aba="custos">Custos</button>
+    <button role="tab" aria-selected="false" data-aba="status">Status</button>
   </div>
 
   <!-- PROJETOS (centro de controle) -->
@@ -231,6 +232,15 @@
       <div id="tabelaUso"></div>
     </div>
   </section>
+
+  <!-- STATUS (tempo real dos providers — SSE) -->
+  <section id="aba-status" hidden>
+    <div class="card">
+      <h2>Providers em tempo real <span class="meta" id="statusAtualizado"></span></h2>
+      <div class="meta" style="margin-bottom:.6rem">Lê o mesmo circuit breaker que o `router.js` usa de verdade — não é uma simulação à parte. Atualiza a cada 2s enquanto esta aba está aberta.</div>
+      <div id="statusProviders"></div>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -246,9 +256,10 @@ const api = async (rota, opts) => {
 // nenhuma lib de animação; navegador sem suporte cai pro corte seco) ---
 function trocarAba(b) {
   document.querySelectorAll('[data-aba]').forEach(x => x.setAttribute('aria-selected', x === b));
-  ['projetos','fluxo','chat','custos'].forEach(a => $('#aba-'+a).hidden = (a !== b.dataset.aba));
+  ['projetos','fluxo','chat','custos','status'].forEach(a => $('#aba-'+a).hidden = (a !== b.dataset.aba));
   if (b.dataset.aba === 'custos') carregarCustos();
   if (b.dataset.aba === 'projetos') carregarProjetos();
+  if (b.dataset.aba === 'status') abrirStatusStream(); else fecharStatusStream();
 }
 document.querySelectorAll('[data-aba]').forEach(b => b.onclick = () => {
   if (document.startViewTransition) document.startViewTransition(() => trocarAba(b));
@@ -261,7 +272,7 @@ let modoSimulacao = true;
   const s = await api('/api/status');
   modoSimulacao = s.modoSimulacao;
   const n = s.providers.filter(p => p.configurada).length;
-  $('#status').textContent = n ? `${n}/4 providers` : 'sem chave';
+  $('#status').textContent = n ? `${n}/${s.providers.length} providers` : 'sem chave';
   if (modoSimulacao) {
     $('#avisoSim').hidden = false;
     $('#avisoSim').textContent = 'Nenhuma chave de API no .env — só a simulação funciona. Rode: bash scripts/setup-keys.sh';
@@ -269,6 +280,37 @@ let modoSimulacao = true;
     $('#btnEnviar').disabled = true;
   }
 })();
+
+// --- status ao vivo (SSE, aba dedicada) ---
+let statusEs = null;
+function fecharStatusStream() {
+  if (statusEs) { statusEs.close(); statusEs = null; }
+}
+function abrirStatusStream() {
+  fecharStatusStream(); // nunca duas conexões abertas ao mesmo tempo
+  statusEs = new EventSource('/api/status/stream');
+  statusEs.addEventListener('status', (ev) => {
+    const { providers, timestampMs } = JSON.parse(ev.data);
+    $('#statusAtualizado').textContent = '· atualizado ' + new Date(timestampMs).toLocaleTimeString('pt-BR');
+    $('#statusProviders').innerHTML = providers.map(renderizarProvider).join('');
+  });
+}
+function renderizarProvider(p) {
+  const corConfig = p.configurada ? 'var(--ok)' : 'var(--erro)';
+  const rotuloConfig = p.keyless ? 'keyless — sem chave' : (p.configurada ? 'chave configurada' : 'sem chave no .env');
+  const rotuloOrdem = p.naOrdemDefault ? '' : ' <span class="pill" style="border-color:var(--alerta);color:var(--alerta)">fora da ordem default</span>';
+  const tiers = p.tiers.map(t => {
+    if (t.circuitoAberto) {
+      const s = Math.ceil(t.reabreEmMs / 1000);
+      return `<span class="pill" style="border-color:var(--erro);color:var(--erro)">${t.tier}: circuito aberto (reabre em ${s}s)</span>`;
+    }
+    return `<span class="pill" style="border-color:var(--ok);color:var(--ok)">${t.tier}: saudável</span>`;
+  }).join(' ');
+  return `<div class="detalhe-item" style="align-items:center;flex-wrap:wrap;gap:.4rem">
+    <span><b>${p.nome}</b>${rotuloOrdem} <span class="meta" style="color:${corConfig}">${rotuloConfig}</span></span>
+    <span>${tiers}</span>
+  </div>`;
+}
 
 // --- agentes ---
 (async () => {

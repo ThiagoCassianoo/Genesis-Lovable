@@ -1,13 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Modelos verificados contra https://ai.google.dev/gemini-api/docs/models
-// em 2026-08-16. Nomes de modelo mudam — não trate isso como fixo pra sempre.
-// "capaz" = julgamento/estratégia/auditoria (custa mais, mas errar aqui
-// é caro e difícil de detectar). "economico" = tarefa mecânica/checklist
-// (instrução rígida cobre a maior parte do gap de capacidade).
-// Ver docs/model-assignment.md pra explicação completa do critério.
+// CORREÇÃO 2026-08-26 (achado por teste real, não por doc): "capaz"
+// apontava pra "gemini-2.5-pro", que agora devolve 404 direto da API —
+// "This model models/gemini-2.5-pro is no longer available to new
+// users." A própria resposta de erro indicou a migração:
+// "models/gemini-3.1-pro-preview". Mesmo padrão que já pegou Groq e
+// Cerebras (auditoria 2026-08-17) — nome de modelo verificado numa
+// data fica velho, e só descobre rodando de verdade. "economico" não
+// foi testado nesta rodada — sem evidência de que esteja quebrado,
+// não mexi.
+// Ver docs/model-assignment.md pra explicação completa do critério
+// capaz/econômico.
 const MODEL_BY_TIER = {
-  capaz: process.env.GEMINI_MODEL_CAPAZ || "gemini-2.5-pro",
+  capaz: process.env.GEMINI_MODEL_CAPAZ || "gemini-3.1-pro-preview",
   economico: process.env.GEMINI_MODEL_ECONOMICO || "gemini-3.5-flash-lite",
 };
 

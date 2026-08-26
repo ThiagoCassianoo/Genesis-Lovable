@@ -121,22 +121,31 @@ const providerKeyMap = {
   groq: "GROQ_API_KEY",
   cerebras: "CEREBRAS_API_KEY",
   gemini: "GEMINI_API_KEY",
+  glm: "GLM_API_KEY",
+  deepseek: "DEEPSEEK_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+  pollinations: null, // keyless de propósito (importado do OmniRoute) — sem env var exigida
 };
 
 const registeredProviders = [...routerRaw.matchAll(/^\s*(\w+):\s*\{\s*send:/gm)].map((m) => m[1]);
 
-// ÂNCORA (2026-08-17): se a regex parasse de casar (ex.: alguém renomeia
-// a propriedade `send`), o loop rodava zero vezes, as 4 checagens
-// sumiam do relatório e o npm test continuava "Tudo OK".
+// ÂNCORA (2026-08-17, atualizada 2026-08-26 — GLM, DeepSeek, Pollinations
+// e OpenRouter entraram no router): se a regex parasse de casar (ex.:
+// alguém renomeia a propriedade `send`), o loop rodava zero vezes, as
+// checagens sumiam do relatório e o npm test continuava "Tudo OK".
 check(
-  registeredProviders.length === 4,
-  `router.js registra ${registeredProviders.length} providers (esperado 4 — se mudou, atualize esta âncora)`
+  registeredProviders.length === 8,
+  `router.js registra ${registeredProviders.length} providers (esperado 8 — se mudou, atualize esta âncora)`
 );
 
 for (const provider of registeredProviders) {
   const envVar = providerKeyMap[provider];
-  if (!envVar) {
+  if (envVar === undefined) {
     check(false, `router.js registra provider "${provider}" sem entrada em providerKeyMap deste teste — atualizar self-test.mjs`);
+    continue;
+  }
+  if (envVar === null) {
+    check(true, `provider "${provider}" é keyless de propósito (sem env var exigida)`);
     continue;
   }
   if (!envExampleRaw.includes(envVar)) {
@@ -427,12 +436,24 @@ for (const p of ["claude", "gemini", "groq", "cerebras"]) {
 
 // 6g. O teste do router precisa existir e estar ligado no npm test —
 // senão o coração do sistema volta a ficar sem cobertura.
+//
+// CORREÇÃO 2026-08-26 (achado pelo fiscal-agent): "npm test" chamava
+// os 3 suites com `&&` — como self-test.mjs tem 1 falha PRÉ-EXISTENTE
+// (não relacionada a código), o `&&` parava ali e test-router.mjs/
+// test-orchestrator.mjs NUNCA rodavam, mesmo aparecendo (por string)
+// dentro do valor de `scripts.test`. Trocado por `test-all.mjs`, que
+// roda os 3 sempre. A checagem por string direto em `scripts.test` não
+// serve mais — segue a cadeia: `test` aponta pro RUNNER, e o RUNNER
+// precisa mencionar o suite.
 {
   const pkg2 = JSON.parse(readFileSync(join(ROOT, "runtime", "package.json"), "utf-8"));
   check(!!pkg2.scripts?.["test:router"], 'package.json declara script "test:router"');
+  const testCmd = pkg2.scripts?.test ?? "";
+  const runnerMatch = testCmd.match(/scripts\/([\w.-]+\.mjs)/);
+  const runnerRaw = runnerMatch ? readFileSync(join(ROOT, "runtime", "scripts", runnerMatch[1]), "utf-8") : "";
   check(
-    /test-router\.mjs/.test(pkg2.scripts?.test ?? ""),
-    'npm test roda o teste do router (não deixa o coração do sistema sem cobertura)'
+    /test-router\.mjs/.test(testCmd) || /test-router\.mjs/.test(runnerRaw),
+    'npm test roda o teste do router (não deixa o coração do sistema sem cobertura) — direto ou via runner intermediário'
   );
   try {
     readFileSync(join(ROOT, "runtime", "scripts", "test-router.mjs"), "utf-8");
@@ -602,8 +623,16 @@ for (const p of ["claude", "gemini", "groq", "cerebras"]) {
     }
   }
 
+  // Mesma correção 2026-08-26 do check acima (6g) — segue a cadeia até
+  // o runner intermediário em vez de exigir a string direto em scripts.test.
   const pkg3 = JSON.parse(readFileSync(join(ROOT, "runtime", "package.json"), "utf-8"));
-  check(/test-orchestrator\.mjs/.test(pkg3.scripts?.test ?? ""), "npm test roda o teste da camada determinística");
+  const testCmd3 = pkg3.scripts?.test ?? "";
+  const runnerMatch3 = testCmd3.match(/scripts\/([\w.-]+\.mjs)/);
+  const runnerRaw3 = runnerMatch3 ? readFileSync(join(ROOT, "runtime", "scripts", runnerMatch3[1]), "utf-8") : "";
+  check(
+    /test-orchestrator\.mjs/.test(testCmd3) || /test-orchestrator\.mjs/.test(runnerRaw3),
+    "npm test roda o teste da camada determinística — direto ou via runner intermediário"
+  );
 
   // A tabela de roteamento do código TEM que espelhar orchestration.md.
   // Foi assim que CLAUDE.md e orchestration.md divergiram uma vez sem

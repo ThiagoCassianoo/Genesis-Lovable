@@ -18,6 +18,7 @@ real**, não recomeçar. Recomeçar é caro e reintroduz bug já resolvido.
 | Arquivo | Domínio | Reutilizável para |
 |---|---|---|
 | `../arquitetura-agendamento.md` | Agendamento de espaços/eventos (igreja) | Qualquer sistema com reserva de recurso e conflito de horário: salão, sala, quadra, equipamento, consulta |
+| `./arquitetura-fallback-multi-provider.md` | Fallback resiliente entre múltiplos providers externos (`runtime/`) | Qualquer serviço externo instável/limitado: breaker por variante (não só por provider), veredito×fato (WITNESS), retry de formato com teto |
 
 ### Referência de design (meta-sistema)
 | Arquivo | Domínio | Reutilizável para |
@@ -29,8 +30,9 @@ real**, não recomeçar. Recomeçar é caro e reintroduz bug já resolvido.
 biblioteca usada, o princípio de psicologia aplicado e onde reusar.
 
 ### Pós-entrega (post-mortem)
-`./post-mortem/` — o que quebrou, por que quebrou, e a regra que
-nasceu disso. Vazio até a primeira entrega real.
+| Arquivo | Domínio | O que quebrou |
+|---|---|---|
+| `./post-mortem/2026-08-26-chave-real-em-env-example.md` | Segurança — segredo em arquivo tracked | Chave real de API colada em `runtime/.env.example` (2x na mesma sessão) em vez de `.env` |
 
 ## O que entra aqui
 - Arquitetura que sobreviveu a uma entrega real.
@@ -48,8 +50,11 @@ nasceu disso. Vazio até a primeira entrega real.
 Ao fechar qualquer entrega, o orquestrador executa — antes de
 considerar o projeto concluído:
 1. O que funcionou e vale catalogar? → vira entrada aqui.
-2. O que quebrou? → vira post-mortem **e** regra nova no agente
-   responsável.
+2. O que quebrou? → vira post-mortem **e** regra nova PROPOSTA em
+   `docs/decisoes.md`, marcada `[a aplicar pelo diretor]`, nomeando
+   arquivo e seção (nenhum agente pode escrever em `.claude/agents/`
+   ou `.claude/hooks/` — redação corrigida 2026-08-17, ver
+   `rules/memory.md`).
 3. Alguma decisão foi revogada na prática? → linha nova em
    `docs/decisoes.md`.
 

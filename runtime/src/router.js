@@ -2,18 +2,67 @@ import { sendToClaude } from "./providers/claude-provider.js";
 import { sendToGemini } from "./providers/gemini-provider.js";
 import { sendToGroq } from "./providers/groq-provider.js";
 import { sendToCerebras } from "./providers/cerebras-provider.js";
+import { sendToGLM } from "./providers/glm-provider.js";
+import { sendToDeepSeek } from "./providers/deepseek-provider.js";
+import { sendToPollinations } from "./providers/pollinations-provider.js";
+import { sendToOpenRouter } from "./providers/openrouter-provider.js";
 
 // Ordem default pensada pra "nunca parar de trabalhar" com custo zero:
-// Claude (condição normal) -> Groq (free mais robusto: 30 RPM, RPD alto,
-// sem cartão) -> Cerebras (free, teto de tokens/dia generoso, bom 2º
-// backup) -> Gemini (free mas RPD mais apertado em alguns modelos,
-// fica por último). Critério e limites reais em docs/custos.md — se um
-// provider mudar de limite, atualiza lá primeiro, a ordem aqui depois.
+// Claude (condição normal) -> GLM (free, 200K contexto no tier capaz —
+// promovido em 2026-08-26 por decisão explícita do diretor, ANTES de
+// teste empírico contra os agentes reais desta fábrica; risco aceito
+// conscientemente, ver docs/decisoes.md) -> Groq (free mais robusto:
+// 30 RPM, RPD alto, sem cartão) -> Cerebras (free, teto de tokens/dia
+// generoso) -> Gemini (free mas RPD mais apertado em alguns modelos) ->
+// OpenRouter (2026-08-26 — free, mas `docs/recursos.md` já tinha
+// rejeitado ele como 1ª/2ª opção em 2026-08-16 por causa do limite: 20
+// RPM / 50 RPD sem crédito, 1000 RPD só depois de US$10 de crédito
+// comprado uma vez. Re-verificado agora, continua assim. Por isso entra
+// aqui embaixo, depois de quem tem limite mais folgado, não substituindo
+// ninguém) -> Pollinations (2026-08-26, importado do OmniRoute: provider
+// KEYLESS — sem cadastro, sem chave — mas 1 req/15s e modelo por trás
+// não documentado publicamente, por isso é o último da ordem default:
+// rede de segurança grátis, não rota de qualidade).
+//
+// DeepSeek continua REGISTRADO em PROVIDERS (dá pra chamar explícito
+// com --order=deepseek ou passando `order` na mão) mas FORA da ordem
+// default desde 2026-08-26: `npm run simular:fallback` provou ao vivo
+// que a chave está com saldo zerado (402 Insufficient Balance) — deixar
+// na ordem default seria um elo morto na corrente, o oposto do que essa
+// simulação existe pra garantir. Reativar: colocar "deepseek" de volta
+// no array `order` default do sendMessage() abaixo, depois de recarregar
+// saldo em https://platform.deepseek.com.
 const PROVIDERS = {
   claude: { send: sendToClaude, tierField: "model" }, // opus | sonnet
+  glm: { send: sendToGLM, tierField: "modelFallback" }, // capaz | economico
   groq: { send: sendToGroq, tierField: "modelFallback" }, // capaz | economico
   cerebras: { send: sendToCerebras, tierField: "modelFallback" }, // capaz | economico
   gemini: { send: sendToGemini, tierField: "modelFallback" }, // capaz | economico
+  openrouter: { send: sendToOpenRouter, tierField: "modelFallback" }, // capaz | economico — RPD limitado
+  pollinations: { send: sendToPollinations, tierField: "modelFallback" }, // capaz | economico — KEYLESS
+  deepseek: { send: sendToDeepSeek, tierField: "modelFallback" }, // capaz | economico — PAGO
+};
+
+// Extraído de dentro de sendMessage() (2026-08-26) pra ser a MESMA
+// constante que /api/status usa no painel — evita a ordem "de verdade"
+// e a ordem "mostrada no dashboard" divergirem silenciosamente, que já
+// aconteceu antes com CLAUDE.md × orchestration.md (ver npm test).
+const ORDEM_DEFAULT = ["claude", "glm", "groq", "cerebras", "gemini", "openrouter", "pollinations"];
+
+const ENV_VAR_POR_PROVIDER = {
+  claude: "ANTHROPIC_API_KEY",
+  glm: "GLM_API_KEY",
+  groq: "GROQ_API_KEY",
+  cerebras: "CEREBRAS_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+  pollinations: null, // keyless de propósito
+  deepseek: "DEEPSEEK_API_KEY",
+};
+
+const TIERS_POR_CAMPO = {
+  model: ["opus", "sonnet"],
+  modelFallback: ["capaz", "economico"],
 };
 
 // Todos com default sensato — só sobrescreve quem precisar, ver .env.example.
@@ -21,7 +70,12 @@ const TIMEOUT_MS = Number(process.env.RUNTIME_PROVIDER_TIMEOUT_MS) || 60_000;
 const RETRY_MAX_ATTEMPTS = Number(process.env.RUNTIME_RETRY_ATTEMPTS) || 2; // tentativas no MESMO provider
 const RETRY_BASE_DELAY_MS = Number(process.env.RUNTIME_RETRY_BASE_DELAY_MS) || 300;
 const RETRY_MAX_DELAY_MS = Number(process.env.RUNTIME_RETRY_MAX_DELAY_MS) || 2_000;
-const BREAKER_THRESHOLD = Number(process.env.RUNTIME_BREAKER_THRESHOLD) || 3; // falhas pra abrir o circuito
+// 2026-08-26: baixado de 3 -> 1 por pedido do diretor ("sempre que uma
+// API falhar já tira ela do caminho"). Como isto só é avaliado DEPOIS
+// do retry (RETRY_MAX_ATTEMPTS acima) já ter tentado 2x o mesmo
+// provider, "1 falha" aqui já significa "2 tentativas reais deram
+// erro" — não é hipersensível a 1 hiccup isolado.
+const BREAKER_THRESHOLD = Number(process.env.RUNTIME_BREAKER_THRESHOLD) || 1; // falhas pra abrir o circuito
 const BREAKER_WINDOW_MS = Number(process.env.RUNTIME_BREAKER_WINDOW_MS) || 60_000; // janela em que as falhas contam
 const BREAKER_COOLDOWN_MS = Number(process.env.RUNTIME_BREAKER_COOLDOWN_MS) || 30_000; // quanto tempo fica aberto
 
@@ -29,19 +83,30 @@ const BREAKER_COOLDOWN_MS = Number(process.env.RUNTIME_BREAKER_COOLDOWN_MS) || 3
 // persistência de propósito: é resiliência de uma sessão de chat, não
 // coordenação entre processos (isso exigiria fila/estado compartilhado,
 // que é outro sistema — ver docs/conhecimento/principios-natureza-orquestrador.md).
-const breakerState = {}; // { [provider]: { failures: number[], openUntil: number } }
+//
+// CHAVE POR "provider:tier", NÃO só "provider" (2026-08-26, importado do
+// padrão do OmniRoute — "model lockout" isolado por modelo). Antes: se
+// glm/capaz (glm-4.7-flash) tomasse rate limit, o circuito abria pro
+// "glm" inteiro e derrubava glm/economico (glm-4.5-flash) junto, mesmo
+// esse nunca tendo sido chamado — superbloqueio silencioso. Agora cada
+// modelo dentro do provider tem seu próprio estado.
+const breakerState = {}; // { [`${provider}:${tier}`]: { failures: number[], openUntil: number } }
 
-function getBreaker(provider) {
-  if (!breakerState[provider]) breakerState[provider] = { failures: [], openUntil: 0 };
-  return breakerState[provider];
+function breakerKey(provider, tier) {
+  return `${provider}:${tier}`;
 }
 
-function isBreakerOpen(provider) {
-  return getBreaker(provider).openUntil > Date.now();
+function getBreaker(key) {
+  if (!breakerState[key]) breakerState[key] = { failures: [], openUntil: 0 };
+  return breakerState[key];
 }
 
-function recordFailure(provider) {
-  const breaker = getBreaker(provider);
+function isBreakerOpen(key) {
+  return getBreaker(key).openUntil > Date.now();
+}
+
+function recordFailure(key) {
+  const breaker = getBreaker(key);
   const now = Date.now();
   breaker.failures = breaker.failures.filter((t) => now - t < BREAKER_WINDOW_MS);
   breaker.failures.push(now);
@@ -50,8 +115,30 @@ function recordFailure(provider) {
   }
 }
 
-function recordSuccess(provider) {
-  breakerState[provider] = { failures: [], openUntil: 0 };
+function recordSuccess(key) {
+  breakerState[key] = { failures: [], openUntil: 0 };
+}
+
+/**
+ * Snapshot pro dashboard (/api/status) — lê o MESMO breakerState que
+ * sendMessage() usa de verdade, nunca um contador paralelo. "Tempo
+ * real" aqui significa isto: se um provider falhou na última chamada
+ * real, este snapshot mostra o circuito aberto contando pra fechar —
+ * não é simulação separada da lógica de failover.
+ */
+export function statusProviders() {
+  const agora = Date.now();
+  return Object.entries(PROVIDERS).map(([nome, def]) => {
+    const envVar = ENV_VAR_POR_PROVIDER[nome];
+    const keyless = envVar === null;
+    const configurada = keyless || Boolean(process.env[envVar]);
+    const tiers = (TIERS_POR_CAMPO[def.tierField] || []).map((tier) => {
+      const b = getBreaker(breakerKey(nome, tier));
+      const reabreEmMs = Math.max(0, b.openUntil - agora);
+      return { tier, circuitoAberto: reabreEmMs > 0, reabreEmMs, falhasRecentes: b.failures.length };
+    });
+    return { nome, keyless, configurada, naOrdemDefault: ORDEM_DEFAULT.includes(nome), tiers };
+  });
 }
 
 /**
@@ -141,7 +228,7 @@ async function withRetry(fn) {
  * @param {{agent: {systemPrompt: string, model: string, modelFallback: string}, history: Array, userMessage: string, order?: string[], providers?: object}} params
  * @returns {Promise<{text: string, provider: string, tier: string, usage: {input: number, output: number}, attempts: {provider: string, error: string}[]}>}
  */
-export async function sendMessage({ agent, history, userMessage, order = ["claude", "groq", "cerebras", "gemini"], providers = PROVIDERS }) {
+export async function sendMessage({ agent, history, userMessage, order = ORDEM_DEFAULT, providers = PROVIDERS }) {
   const attempts = [];
 
   for (const providerName of order) {
@@ -151,13 +238,15 @@ export async function sendMessage({ agent, history, userMessage, order = ["claud
       continue;
     }
 
-    if (isBreakerOpen(providerName)) {
-      const waitS = Math.ceil((getBreaker(providerName).openUntil - Date.now()) / 1000);
-      attempts.push({ provider: providerName, error: `circuito aberto — falhou demais recentemente, pulando por mais ${waitS}s` });
+    const tier = agent[providerDef.tierField];
+    const bKey = breakerKey(providerName, tier);
+
+    if (isBreakerOpen(bKey)) {
+      const waitS = Math.ceil((getBreaker(bKey).openUntil - Date.now()) / 1000);
+      attempts.push({ provider: providerName, error: `circuito aberto (${providerName}/${tier}) — falhou demais recentemente, pulando por mais ${waitS}s` });
       continue;
     }
 
-    const tier = agent[providerDef.tierField];
     try {
       const { text, usage } = await withRetry(() =>
         withTimeout(
@@ -166,10 +255,10 @@ export async function sendMessage({ agent, history, userMessage, order = ["claud
           providerName
         )
       );
-      recordSuccess(providerName);
+      recordSuccess(bKey);
       return { text, provider: providerName, tier, usage: usage || { input: 0, output: 0 }, attempts };
     } catch (err) {
-      recordFailure(providerName);
+      recordFailure(bKey);
       attempts.push({ provider: providerName, error: err.message });
       // segue pro próximo provider da ordem — não relança aqui.
     }

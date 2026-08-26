@@ -307,5 +307,11 @@ só 5h e 7 dias — ver status line).
   confirmar de novo o que já passou — só rerrode se algo em
   `runtime/src/` ou `.claude/hooks/` mudar depois deste registro.
 
+
 ---
-**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-20T15:58:50Z (motivo: other).
+**[AVISO AUTOMÁTICO — session-end.sh]** Sessão encerrada em 2026-08-26T12:47:51Z (motivo: other).
+O cabeçalho deste arquivo não é de hoje — provável que `/retomar` não
+rodou nesta sessão. Trate o conteúdo acima como potencialmente
+desatualizado. Transcript bruto desta sessão: `C:\\Users\\Lenovo\\.claude\\projects\\c--Users-Lenovo-Desktop-Thiago-Aux-Nova-pasta-missoes-tech-agentes\\61201a47-7466-4ae6-a329-bfc444c839eb.jsonl`.
+Próxima sessão: confira `git log --oneline -5` antes de assumir que
+este arquivo reflete o estado real do repositório.

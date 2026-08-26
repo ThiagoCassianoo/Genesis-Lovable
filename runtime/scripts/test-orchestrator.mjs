@@ -11,6 +11,7 @@ import { decidir, DECISOES_DETERMINISTICAS, DECISOES_QUE_EXIGEM_IA } from "../sr
 import { extrairCampos, montarContexto } from "../src/orchestrator/context-engine.js";
 import { registrarDecisao, resumirDecisoes } from "../src/orchestrator/decision-record.js";
 import { AGENTES_COM_FERRAMENTA, FERRAMENTA_POR_AGENTE, ANTI_PADROES } from "../src/orchestrator/ferramentas.js";
+import { verificarContradicao } from "../src/orchestrator/witness.js";
 
 const res = [];
 const ok = (c, m) => res.push({ ok: c, m });
@@ -209,6 +210,40 @@ Recomendação prioritária: focar em agendamento
     ([, f]) => typeof f.executar !== "function"
   );
   ok(semFronteira.length === 0, "toda ferramenta é executável");
+}
+
+// ---------------------------------------------------------------
+// 10. WITNESS — veredito declarado × fato da ferramenta (importado de
+// github.com/juyterman1000/entroly, 2026-08-26)
+// ---------------------------------------------------------------
+{
+  const contradiz = verificarContradicao({
+    agente: "qa-agent",
+    evidenciaBruta: { exitCode: 1 },
+    saidaAgente: "Veredito: pass\nCasos testados: login, logout",
+  });
+  ok(contradiz.aplicavel && contradiz.contradiz === true, "witness: exit 1 (falhou) + 'Veredito: pass' = CONTRADIÇÃO pega, sem gastar token");
+
+  const bate = verificarContradicao({
+    agente: "qa-agent",
+    evidenciaBruta: { exitCode: 0 },
+    saidaAgente: "Veredito: pass\nCasos testados: login, logout",
+  });
+  ok(bate.aplicavel && bate.contradiz === false, "witness: exit 0 (passou) + 'Veredito: pass' = sem contradição");
+
+  const semExitCode = verificarContradicao({
+    agente: "business-agent",
+    evidenciaBruta: { fato: true }, // sem exitCode — ex.: grep em docs/decisoes.md
+    saidaAgente: "Veredito: pass",
+  });
+  ok(semExitCode.aplicavel === false, "witness: sem exit code binário na evidência, não se aplica (não é falso-negativo, é 'não avalia')");
+
+  const semVeredito = verificarContradicao({
+    agente: "creative-agent",
+    evidenciaBruta: { exitCode: 1 },
+    saidaAgente: "Direção criativa: minimalista, sem seção de Veredito nesse contrato",
+  });
+  ok(semVeredito.aplicavel === false, "witness: agente sem campo 'Veredito' no contrato não é avaliado (evita falso positivo em agente read-only)");
 }
 
 // --- Relatório ---

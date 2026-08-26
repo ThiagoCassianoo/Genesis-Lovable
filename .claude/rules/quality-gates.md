@@ -90,6 +90,16 @@ menos coisa aqui, não sumir do fluxo.
   recomendação**, nunca como pergunta seca.
 
 ## Definição de pronto
+- [ ] `git diff` conferido ANTES de reportar "teste passou": nenhum
+      teste foi desabilitado/pulado, nenhum caso de teste foi apagado,
+      nenhum arquivo fora do escopo pedido foi tocado — checklist
+      importado de github.com/LoFi-Monk/lofi-gate (2026-08-26), que
+      chama isso de "Checkpoint". Diferença deliberada da fonte: lá é
+      autoavaliação do mesmo agente (sem trava real — o próprio projeto
+      admite isso); aqui continua sendo o `implementation-agent` que se
+      confere ANTES de entregar, mas quem audita de verdade continua
+      sendo o `fiscal-agent` — agente diferente, independente, é isso
+      que dá o dente que a fonte não tinha.
 - [ ] `lint` e `build` passam
 - [ ] Responsivo mobile / tablet / desktop
 - [ ] Zero conteúdo inventado

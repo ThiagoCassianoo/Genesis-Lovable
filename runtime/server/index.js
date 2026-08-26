@@ -5,7 +5,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAgent } from "../src/agentloader.js";
-import { sendMessage } from "../src/router.js";
+import { sendMessage, statusProviders } from "../src/router.js";
 import { logUsage, summarizeUsage } from "../src/usage-logger.js";
 import { trimHistory, DEFAULT_MAX_HISTORY_TURNS } from "../src/history.js";
 import { rodar } from "../src/orchestrator/worker.js";
@@ -100,13 +100,36 @@ const servidor = createServer(async (req, res) => {
       return json(res, 200, { passos });
     }
 
+    // 2026-08-26: trocado de checagem fixa de 4 chaves (ficou stale
+    // assim que GLM/Pollinations/DeepSeek entraram no router e ninguém
+    // lembrou de atualizar aqui) pra statusProviders(), que lê os
+    // MESMOS providers registrados de verdade em router.js — não pode
+    // mais divergir porque não existe lista duplicada.
     if (url.pathname === "/api/status" && req.method === "GET") {
-      const chaves = ["ANTHROPIC_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "GEMINI_API_KEY"];
+      const providers = statusProviders();
       return json(res, 200, {
-        providers: chaves.map((k) => ({ env: k, configurada: Boolean(process.env[k]) })),
+        providers,
         maxHistoryTurns: DEFAULT_MAX_HISTORY_TURNS,
-        modoSimulacao: !chaves.some((k) => process.env[k]),
+        modoSimulacao: !providers.some((p) => p.configurada),
       });
+    }
+
+    // SSE — status dos providers em tempo real (dashboard). Mesmo
+    // padrão de /api/fluxo/stream: EventSource do browser só abre GET.
+    // "Tempo real" = lê o breakerState de verdade a cada tick, não uma
+    // simulação separada — se um provider abrir circuito numa chamada
+    // real enquanto o dashboard está aberto, o próximo tick já mostra.
+    if (url.pathname === "/api/status/stream" && req.method === "GET") {
+      res.writeHead(200, {
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-cache",
+        connection: "keep-alive",
+      });
+      const enviar = () => res.write(`event: status\ndata: ${JSON.stringify({ providers: statusProviders(), timestampMs: Date.now() })}\n\n`);
+      enviar();
+      const intervalo = setInterval(enviar, 2000);
+      req.on("close", () => clearInterval(intervalo));
+      return;
     }
 
     if (url.pathname === "/api/custos" && req.method === "GET") {
@@ -242,7 +265,7 @@ servidor.listen(PORT, "127.0.0.1", () => {
   console.log(`║  Missões Tech — painel                         ║`);
   console.log(`╚════════════════════════════════════════════════╝`);
   console.log(`\n  → http://localhost:${PORT}\n`);
-  const temChave = ["ANTHROPIC_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "GEMINI_API_KEY"].some((k) => process.env[k]);
+  const temChave = statusProviders().some((p) => p.configurada);
   console.log(temChave
     ? "  Chaves detectadas — o chat faz chamada REAL de API."
     : "  Nenhuma chave no .env — só o modo simulação funciona.\n  Rode: bash scripts/setup-keys.sh");

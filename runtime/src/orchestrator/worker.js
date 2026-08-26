@@ -4,6 +4,7 @@ import { logUsage } from "../usage-logger.js";
 import { decidir } from "./gate.js";
 import { registrarDecisao } from "./decision-record.js";
 import { montarContexto, extrairCampos, CAMPOS_DE_SAIDA } from "./context-engine.js";
+import { verificarContradicao } from "./witness.js";
 import { coletarEvidencia, AGENTES_COM_FERRAMENTA } from "./ferramentas.js";
 import * as Fila from "./fila.js";
 import { join, dirname } from "node:path";
@@ -202,6 +203,74 @@ export async function rodar({
           decisao: "saída gerada", timestampMs: agora(),
         });
         onPasso({ tipo: "ia", agente: passo.agente, provider: r.provider, tokens: r.usage });
+
+        // RETRY DE FORMATO (2026-08-26, achado por teste real de ponta a
+        // ponta: GLM grátis ignorou campo obrigatório em 2 de 4 passos
+        // de um fluxo real). 1 tentativa extra, SÓ se o agente tem
+        // contrato declarado (CAMPOS_DE_SAIDA) e a 1ª saída não bateu.
+        // Nunca mais que 1 — Regra de Ouro 7 (duas tentativas iguais que
+        // falham = aceita com o desvio registrado, não vira loop). Custa
+        // token só quando precisa: saída que já veio certa não gera 2ª
+        // chamada nenhuma.
+        if (CAMPOS_DE_SAIDA[passo.agente]) {
+          const conf1 = extrairCampos(saida, passo.agente);
+          reg("regra"); // decidir SE retenta é regra, zero token — só a chamada em si custa
+          if (!conf1.conforme) {
+            // CORREÇÃO (achado do fiscal-agent, 2026-08-26): este bloco
+            // tem try/catch PRÓPRIO, separado do try externo. Antes, uma
+            // falha na chamada de RETRY (ex.: todos os providers com
+            // circuito aberto no momento exato do retry) caía no catch
+            // de fora, que marca "TODOS os providers caíram" e descarta
+            // a 1ª saída — mesmo ela sendo válida. Agora: retry falhou =
+            // fica com a 1ª saída (com o desvio já registrado), nunca
+            // derruba o passo inteiro por causa de uma tentativa extra
+            // que era bônus, não requisito.
+            try {
+              const pedidoCorrecao = `Sua resposta anterior não incluiu os campos obrigatórios do seu "## Formato de saída": ${conf1.faltando.join(", ")}. Responda de novo, completa, com TODOS os campos — use "[a preencher]" só se genuinamente não tiver a informação.`;
+              const r2 = await sendMessage({
+                agent: agente,
+                history: [{ role: "user", text: prompt }, { role: "assistant", text: saida }],
+                userMessage: pedidoCorrecao,
+              });
+              stats.tokensIn += r2.usage.input;
+              stats.tokensOut += r2.usage.output;
+              reg("ia"); // a chamada de retry É uma 2ª invocação real de IA — sem isso o "% sem IA" fica inflado, contando token gasto como se fosse decisão de regra
+              logUsage({
+                agent: passo.agente, provider: r2.provider, tier: r2.tier,
+                inputTokens: r2.usage.input, outputTokens: r2.usage.output, timestampMs: agora(),
+              });
+              const conf2 = extrairCampos(r2.text, passo.agente);
+              reg("regra"); // já o CHECK do resultado do retry é regra, zero token — decisão separada da chamada acima
+              registrarDecisao({
+                etapa: passo.etapa, agente: passo.agente, fonte: "regra",
+                evidencia: conf2.conforme
+                  ? `retry de formato corrigiu — faltavam: ${conf1.faltando.join(", ")}`
+                  : `retry de formato NÃO corrigiu — ainda faltando: ${conf2.faltando.join(", ")} (aceita com desvio, sem 3ª tentativa)`,
+                decisao: conf2.conforme ? "retry aceito" : "retry esgotado, aceita com desvio",
+                timestampMs: agora(),
+              });
+              onPasso({
+                tipo: "retry-formato", agente: passo.agente, corrigiu: conf2.conforme,
+                faltandoAntes: conf1.faltando, faltandoDepois: conf2.faltando,
+              });
+              // Usa a 2ª resposta de qualquer jeito, mesmo sem corrigir
+              // 100% — na prática ela costuma vir mais completa que a 1ª.
+              saida = r2.text;
+            } catch (eRetry) {
+              reg("regra");
+              registrarDecisao({
+                etapa: passo.etapa, agente: passo.agente, fonte: "regra",
+                evidencia: `retry de formato NÃO PÔDE RODAR (${eRetry.message}) — mantida a 1ª saída, que já era válida, só fora do formato`,
+                decisao: "retry indisponível, mantém 1ª saída com desvio registrado",
+                timestampMs: agora(),
+              });
+              onPasso({ tipo: "retry-formato-indisponivel", agente: passo.agente, erro: eRetry.message });
+              // NÃO faz nada com `saida` — continua sendo a 1ª resposta,
+              // válida, só não corrigida. Não propaga o erro pro catch
+              // externo (isso derrubaria o passo inteiro por engano).
+            }
+          }
+        }
       } catch (e) {
         // TODOS os providers caíram. NÃO trava o sistema.
         Fila.bloquear(fila, passo.agente, passo.etapa, e.message);
@@ -229,7 +298,31 @@ export async function rodar({
       onPasso({ tipo: "fora-do-formato", agente: passo.agente, faltando: conf.faltando });
     }
 
-    Fila.concluir(fila, passo.agente, saida, { conforme: conf.conforme });
+    // ---- DECISÃO 5b: o veredito declarado bate com o FATO da ferramenta? (regra, zero token) ----
+    // WITNESS (importado de entroly, 2026-08-26): evidenciaFerramenta.bruto
+    // já tinha o exit code ANTES da IA responder — se o agente declara
+    // "Veredito: pass" contradizendo um exit code de falha, é contradição
+    // objetiva, não opinião. Mesmo tema do Checkpoint (lofi-gate): não
+    // deixar o agente "fingir" que passou.
+    const witness = verificarContradicao({
+      agente: passo.agente,
+      evidenciaBruta: evidenciaFerramenta?.bruto,
+      saidaAgente: saida,
+    });
+    if (witness.aplicavel) {
+      reg("regra");
+      registrarDecisao({
+        etapa: passo.etapa, agente: passo.agente, fonte: "regra",
+        evidencia: witness.motivo,
+        decisao: witness.contradiz ? "CONTRADIÇÃO — veredito não confia" : "veredito confere com o fato",
+        timestampMs: agora(),
+      });
+      if (witness.contradiz) {
+        onPasso({ tipo: "witness-contradicao", agente: passo.agente, motivo: witness.motivo });
+      }
+    }
+
+    Fila.concluir(fila, passo.agente, saida, { conforme: conf.conforme, witnessContradiz: witness.contradiz === true });
     Fila.salvar(fila);
   }
 

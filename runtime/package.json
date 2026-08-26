@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Runtime v0 para rodar os agentes .claude/agents/*.md fora do Claude Code, com failover Claude -> Groq -> Cerebras -> Gemini.",
+  "description": "Runtime v0 para rodar os agentes .claude/agents/*.md fora do Claude Code, com failover multi-provider (ver ORDEM_DEFAULT em src/router.js — muda com frequência, não duplicar lista aqui).",
   "scripts": {
     "chat": "node src/cli.js",
-    "test": "node scripts/self-test.mjs && node scripts/test-router.mjs && node scripts/test-orchestrator.mjs && node scripts/simular.mjs --limpar",
+    "test": "node scripts/test-all.mjs",
     "test:orchestrator": "node scripts/test-orchestrator.mjs",
     "test:self": "node scripts/self-test.mjs",
     "test:router": "node scripts/test-router.mjs",
@@ -14,7 +14,9 @@
     "custos": "node scripts/custos-report.mjs",
     "painel": "node server/index.js",
     "simular": "node scripts/simular.mjs",
-    "testar:navigator": "node scripts/testar-navigator.mjs"
+    "testar:navigator": "node scripts/testar-navigator.mjs",
+    "conselho": "node scripts/rodar-conselho.mjs",
+    "simular:fallback": "node scripts/simular-fallback-completo.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",
