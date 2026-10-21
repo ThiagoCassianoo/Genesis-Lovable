@@ -39,7 +39,7 @@ Histórico completo vive em `docs/decisoes.md` e no git; não está repetido aqu
 - confirmar status line / `jq`;
 - rodar `/mcp` para desativar servidor MCP parado;
 - apagar o arquivo lixo untracked `runtime/web/UsersLenovo...js`, se ainda existir;
-- rodar `git config core.hooksPath .githooks` na máquina dele.
+- rodar `git config core.hooksPath .githooks` na máquina dele (e o pre-commit agora é 100755 — antes o gate era ignorado fora do Windows).
 
 ## O que NÃO fazer ao retomar
 - Não abrir feature nova da fábrica antes de esvaziar "Agora" do `TASKS.md`.
