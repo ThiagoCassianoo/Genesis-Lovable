@@ -270,3 +270,43 @@ decide se um dia vale migrar pra multi-tenant.
 | Data | Decisão | Aprovada por | Motivo |
 |---|---|---|---|
 | 2026-08-26 | **`[a aplicar pelo diretor]`** — proposta, não aplicada (nenhum agente deste projeto tem permissão de criar/editar `.claude/hooks/`). **Arquivo:** novo `.claude/hooks/guard-env-example-secret.sh`, registrado em `.claude/settings.json` como `PreToolUse` pros tools `Write`/`Edit`, mesmo padrão de `guard-red-lines.sh`. **Regra:** se `file_path` terminar em `.env.example` e o conteúdo novo tiver linha `[A-Z_]+=` seguida de 15+ caracteres alfanuméricos, bloquear com exit 2 e apontar pro `.env` como destino certo. Detalhe completo em `docs/conhecimento/post-mortem/2026-08-26-chave-real-em-env-example.md`. | [a aplicar pelo diretor] | Mitigação textual (aviso no topo do `.env.example`) foi tentada depois da 1ª ocorrência e não impediu a 2ª, na mesma sessão — padrão do projeto é que garantia real vira trava mecânica, não só texto. |
+
+## Exceção pontual ao padrão alto-ticket — teste café — 2026-10-21 — `[a ratificar pelo diretor]`
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Esqueleto `cafe-teste` (teste fictício, não é cliente real) entregue sem React Three Fiber, GSAP, Lenis nem Framer Motion, contrariando `CLAUDE.md` § Stack ("ausência total reprova") e a decisão de 2026-08-14. Resolvido pelo `technical-agent` via `quality-gates.md`: critério 6 ("funciona" no celular de campo / bundle) vence critério 2 ("alto padrão visual"). Bundle medido: 120.63 KB gzip. Versões fixadas: React em 18 (latest é 19.3.1), `typescript` ~5.9 (peer do `typescript-eslint`), `@hookform/resolvers` 5.9.2 (v6 deu ERESOLVE). | [a ratificar pelo diretor] | Pedido do diretor: "método mais rápido, sem acrescentar nada" + achado 1 do `fiscal-agent`. |
+
+## Exceção alto-ticket RATIFICADA como regra para todo MVP de sistema/SaaS — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Exceção alto-ticket RATIFICADA como regra para todo MVP de sistema/SaaS — revoga o `[a ratificar pelo diretor]` da seção anterior de 2026-10-21 ("Exceção pontual ao padrão alto-ticket — teste café"). Aplicado pelo orquestrador (decisão do diretor, resposta 3A) em `CLAUDE.md` § Stack, `.claude/agents/creative-agent.md` (§ Bibliotecas obrigatórias) e `.claude/agents/reviewer-agent.md` (§ Checklist obrigatório por biblioteca). Site/landing continua sem exceção. Condição: exceção declarada pelo `technical-agent` + bundle no orçamento. | Thiago | Resposta do diretor ao fechamento da sessão (3A). Critério 6 ("funciona"/bundle) > critério 2 ("visual") em `quality-gates.md`; bundle do teste café medido em 120.63 KB gzip. |
+
+## Esqueleto café dentro do repo 1 em `projetos/cafe-teste/` (decisão 1B) — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Esqueleto café dentro do repo 1 em `projetos/cafe-teste/` (decisão 1B). Copiado de `/home/user/cafe-teste` sem `node_modules`/`dist`/`.git` (58 arquivos). Revoga, só para este teste, a PREMISSA de `docs/arquitetura-repo1-repo2.md` (repo 2 separado); o documento continua PREMISSA para clientes reais. | Thiago | Salvar o MVP sem criar repositório externo. |
+
+## Hook `guard-env-example-secret.sh` APLICADO — revoga o `[a aplicar pelo diretor]` de 2026-08-26 — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Hook `guard-env-example-secret.sh` APLICADO — revoga o `[a aplicar pelo diretor]` da entrada "Regra proposta — hook mecânico contra chave real em `.env.example`" de 2026-08-26. Registrado em `.claude/settings.json` como `PreToolUse` `Write\|Edit`; bloqueia (exit 2) `VAR=` seguido de 15+ caracteres em arquivo `*.env.example`. 6 casos testados: chave real via Write → 2; Write vazio → 0; chave real via Edit → 2; valor curto (`RUNTIME_PORT=4573`) → 0; `.env` real → 0; remover chave (new_string `K=`) → 0. | Thiago | Diretor pediu "fechar todas as pontas soltas". |
+
+## Regressão do bit +x dos hooks — revoga parcialmente a "Correção 2026-08-20 — bit de execução" — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Regressão do bit +x dos hooks — revoga parcialmente a "Correção 2026-08-20 — revogação parcial: bit de execução NÃO tinha sido restaurado". O commit `1785f1c` (2026-08-26) gravou de novo os 8 hooks como 100644 no índice; o commit desta sessão restaura 100755 (9 hooks, incluindo o novo). | Thiago | Lição: commit feito no Windows sem `git update-index --chmod=+x` como última operação volta o modo; checar `git ls-files -s .claude/hooks` antes de push. |
+
+## self-test: falha pré-existente desde 2026-08-20 resolvida — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | self-test: falha pré-existente desde 2026-08-20 resolvida. A checagem "CLAUDE.md e orchestration.md concordam sobre pausa entre etapas" procurava `roda sem pausa entre etapas`; o enxugamento de 2026-08-20 cortou para `roda sem pausa —`. As 2 palavras foram devolvidas na Regra de Ouro 1 do `CLAUDE.md` (sentido inalterado). `npm test` em `runtime/`: self-test 115/0, router 28/0, orchestrator 45/0 = 188 checagens, 0 falha (deps via `npm ci` do lockfile, sem pacote novo, autorizado pelo diretor). | Thiago | `[não informado]` |
+
+## Commit + push desta sessão feitos pelo orquestrador (decisão 2A) — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Commit + push desta sessão feitos pelo orquestrador (decisão 2A) — exceção à tabela do `CLAUDE.md` ("commit só sai do terminal do diretor"). Marcador do `fiscal-agent` com `diff_hash` exigido mesmo assim (sem `--no-verify`). Push para a branch `claude/elegant-volta-l8ubca`, não para `main` — merge em `main` continua decisão do diretor. | Thiago | Sessão cloud não tem terminal do diretor; o diretor autorizou explicitamente. |
+
+## Café: "Remover exemplos" agora pede confirmação — 2026-10-21
+| Data | Decisão | Aprovada por | Motivo |
+|---|---|---|---|
+| 2026-10-21 | Café: "Remover exemplos" agora pede confirmação, com o mesmo padrão do "Recomeçar do zero" (corrigido pelo `implementation-agent`; 32/32 testes). Pendente de produto `[a decidir pelo diretor]`: atividade REAL registrada em talhão de exemplo é apagada junto (preservar/mover?). | Thiago | Achado não-bloqueante do `fiscal-agent`. |

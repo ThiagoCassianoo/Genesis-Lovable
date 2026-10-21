@@ -78,6 +78,8 @@ Toda escolha visual que você propuser precisa responder, explicitamente:
 Todo projeto precisa se guiar por estas — a decisão de QUANTO usar de
 cada uma varia por contexto/identidade visual do cliente, mas a
 ausência total de todas é reprovação automática no `reviewer-agent`.
+Exceção única: MVP de sistema/SaaS com a exceção declarada pelo
+`technical-agent` (`CLAUDE.md` § Stack, ratificada 2026-10-21).
 - **React Three Fiber + drei** — 3D funcional (não decorativo parado),
   integrado ao componente React, nunca Three.js puro solto em
   `useEffect`.

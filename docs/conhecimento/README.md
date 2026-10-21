@@ -19,6 +19,7 @@ real**, não recomeçar. Recomeçar é caro e reintroduz bug já resolvido.
 |---|---|---|
 | `../arquitetura-agendamento.md` | Agendamento de espaços/eventos (igreja) | Qualquer sistema com reserva de recurso e conflito de horário: salão, sala, quadra, equipamento, consulta |
 | `./arquitetura-fallback-multi-provider.md` | Fallback resiliente entre múltiplos providers externos (`runtime/`) | Qualquer serviço externo instável/limitado: breaker por variante (não só por provider), veredito×fato (WITNESS), retry de formato com teto |
+| `./repository-localstorage-trocavel-supabase.md` | Repository assíncrono sobre localStorage (`cafe:v1`, zod, Context), trocável por Supabase | MVP/protótipo front-only de CRUD que depois migra pra Supabase; data local sem `toISOString`; exemplos fictícios marcados |
 
 ### Referência de design (meta-sistema)
 | Arquivo | Domínio | Reutilizável para |

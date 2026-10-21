@@ -53,6 +53,11 @@ antigo virou o item 5 com o recorte de percepção.)*
 
 ## Checklist obrigatório por biblioteca (baseline alto-ticket — reprova se faltar)
 
+**Exceção:** MVP de sistema/SaaS com exceção declarada pelo
+`technical-agent` não reprova por ausência destas bibliotecas
+(`CLAUDE.md` § Stack, ratificada 2026-10-21). Confira só que a
+exceção está declarada e que o bundle cabe no orçamento.
+
 **3D (React Three Fiber)**
 - [ ] Presente de forma funcional (reage a scroll/interação), não decorativo parado
 - [ ] Fallback para dispositivo fraco/sem WebGL (canvas estático ou seção alternativa)

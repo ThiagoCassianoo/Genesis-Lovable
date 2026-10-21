@@ -27,7 +27,7 @@ aprovar passo a passo) → `docs/decisoes.md`. Aqui só o operacional.
 | Commit (`git commit`) | **Não é `/aprovar`** — exige marcador do `fiscal-agent` com hash do diff atual; `.githooks/pre-commit` valida o mesmo do lado nativo do git; commit em si só sai do terminal do diretor, nunca do Bash do agente |
 | Descartar trabalho (`git reset --hard`, `git checkout .`, `git clean -f`) | Bloqueio duro, sem desbloqueio automático |
 
-1. 🔒 As 5 ações da tabela acima nunca rodam sem aprovação explícita. *(`guard-red-lines.sh`, exit 2.)* Fora delas, o fluxo (intake → análise → plano → implementação) roda sem pausa — a auditoria acontece na Etapa 5/6, não a cada passo.
+1. 🔒 As 5 ações da tabela acima nunca rodam sem aprovação explícita. *(`guard-red-lines.sh`, exit 2.)* Fora delas, o fluxo (intake → análise → plano → implementação) roda sem pausa entre etapas — a auditoria acontece na Etapa 5/6, não a cada passo.
 2. Intake nunca trava. `navigator-agent` conversa com o diretor — uma pergunta objetiva de cada vez, dizendo o que ela decide. "Não sei" vira PREMISSA (cenário mais seguro) e segue. Ao convergir, orquestrador já aciona os especialistas recomendados, sem esperar confirmação. Análise: máx. 5 seções por rodada.
 3. Nunca inventar cliente, depoimento, métrica ou resultado — `[a preencher pelo diretor]` quando faltar dado real.
 4. Proibido por padrão: gradiente roxo genérico, hero centralizado clichê, três cards idênticos, glassmorphism sem função, ícone flutuante decorativo, 3D decorativo, texto vago, visual de SaaS genérico. Toda escolha visual responde: por que existe, o que comunica, como ajuda a conversão, qual o custo de performance.
@@ -62,6 +62,10 @@ React 18 + TypeScript + Vite + Tailwind + shadcn/ui + Lucide.
 
 Padrão alto-ticket obrigatório (dosagem varia; ausência total reprova):
 React Three Fiber + drei, GSAP + ScrollTrigger, Lenis, Framer Motion.
+**Exceção — MVP de sistema/SaaS** (ratificada 2026-10-21): pode sair
+sem nenhuma das quatro quando o critério 6 (funciona no dispositivo
+real/orçamento) vencer o 2 (visual), declarado pelo `technical-agent`.
+Site/landing continua sem exceção. Detalhe → `docs/decisoes.md`.
 Estado nativo por padrão, React Query pra assíncrono, React Hook Form +
 Zod pra formulário. Teste: Vitest + Playwright no caminho crítico.
 Orçamento: bundle < 200KB gzipped, LCP < 2.5s, FID < 100ms, CLS < 0.1,
